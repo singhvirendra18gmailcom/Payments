@@ -22,12 +22,24 @@ async def root(name: str):
 
 
 @app.get("/api/cars")
-async def get_cars(size: str|None, doors: int|None) -> dict:
-    result = db
+async def get_cars(size:str|None = None, doors:int|None = None):
+    cars = db
     if size:
-        result = [car for car in result if car["size"] == size]
+        cars = [car for car in cars if car["size"] == size]
     if doors:
-        result = [car for car in result if car["doors"] >= doors]
+        cars = [car for car in cars if car["doors"] == doors]
 
-    return result
+    return cars;
+
+
+@app.get("/api/cars/{id}")
+async def get_car(id:int):
+    for car in db:
+        if car["id"] == id:
+            return car
+    return {"message": "car not found"}
+
+
+
+
 
