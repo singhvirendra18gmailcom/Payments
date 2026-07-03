@@ -10,7 +10,7 @@
 
 ## Version 1.1 ()
 - [x] Add .env support
-- [ ] Add application logging
+- [x] Add application logging
 - [ ] Add unit tests
 - [ ] Add docker file
 - [ ] Add docker-compose
