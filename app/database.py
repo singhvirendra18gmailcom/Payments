@@ -1,13 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-import os
-from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "payment_assistant.db"
-
-DATABASE_URL = f"sqlite:///{DB_PATH}"
-
+from app.config import DATABASE_URL
 
 engine = create_engine(
     DATABASE_URL,
