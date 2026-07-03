@@ -8,6 +8,14 @@
 - [x] Payment Explanation API
 - [x] Chat API
 
+## Version 1.1 ()
+- [x] Add .env support
+- [x] Add application logging
+- [x] Add unit tests
+- [x] Add docker file
+- [x] Add docker-compose
+- [x] Improve README
+
 ## Version 2
 - [ ] PostgreSQL
 - [ ] OpenAI Integration

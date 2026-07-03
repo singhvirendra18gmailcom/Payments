@@ -7,10 +7,8 @@ from sqlalchemy.orm import Session
 
 from .database import SessionLocal
 from .models import User
+from app.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
-SECRET_KEY = "erfdsmj767bsal"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -33,6 +31,8 @@ def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
+    if not SECRET_KEY:
+        raise ValueError("SECRET_KEY is not configured")
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def get_current_user(
@@ -40,6 +40,8 @@ def get_current_user(
     db: Session = Depends(get_db)
 ):
     try:
+        if not SECRET_KEY:
+            raise ValueError("SECRET_KEY is not configured")
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
 
