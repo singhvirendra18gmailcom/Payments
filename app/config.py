@@ -3,10 +3,21 @@ import os
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    "test_secret_key_for_local_and_ci"
+)
+
+ALGORITHM = os.getenv(
+    "ALGORITHM",
+    "HS256"
+)
+
 ACCESS_TOKEN_EXPIRE_MINUTES = int(
-    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60)
+    os.getenv(
+        "ACCESS_TOKEN_EXPIRE_MINUTES",
+        "60"
+    )
 )
 
 DATABASE_URL = os.getenv(
