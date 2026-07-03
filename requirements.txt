@@ -6,7 +6,7 @@ python-jose[cryptography]
 python-multipart
 pydantic[email]
 python-dotenv
-
+argon2_cffi
 # Testing
 pytest
 httpx
