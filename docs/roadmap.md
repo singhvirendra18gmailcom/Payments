@@ -11,10 +11,10 @@
 ## Version 1.1 ()
 - [x] Add .env support
 - [x] Add application logging
-- [ ] Add unit tests
-- [ ] Add docker file
-- [ ] Add docker-compose
-- [ ] Improve README
+- [x] Add unit tests
+- [x] Add docker file
+- [x] Add docker-compose
+- [x] Improve README
 
 ## Version 2
 - [ ] PostgreSQL
