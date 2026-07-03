@@ -9,7 +9,7 @@
 - [x] Chat API
 
 ## Version 1.1 ()
-- [ ] Add .env support
+- [x] Add .env support
 - [ ] Add application logging
 - [ ] Add unit tests
 - [ ] Add docker file
