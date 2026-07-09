@@ -2,7 +2,9 @@ import os
 import time
 
 from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+from app.config import AI_PROVIDER
 from app.logger import logger
 from app.services.ai_factory import get_ai_service
 from app.services.payment_service import PaymentService
@@ -226,9 +228,31 @@ def explain_payment_ai(request: PaymentExplainRequest):
 
 @app.get("/ai/health")
 def ai_health():
-    ai_service = get_ai_service()
+    logger.info("AI health endpoint called")
 
-    return {
-        "provider": "gemini",
-        "available": ai_service.health_check()
-    }
+    try:
+        ai_service = get_ai_service()
+        available = ai_service.health_check()
+    except Exception as ex:
+        logger.exception("AI health check failed")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "provider": AI_PROVIDER,
+                "available": False,
+                "error": str(ex),
+            },
+        )
+
+    status_code = 200 if available else 503
+    status = "healthy" if available else "unhealthy"
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": status,
+            "provider": AI_PROVIDER,
+            "available": available,
+        },
+    )
