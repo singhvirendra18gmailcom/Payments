@@ -2,6 +2,9 @@ import os
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.logger import logger
+from app.services.ai_factory import get_ai_service
+from app.services.payment_service import PaymentService
+
 
 from .database import Base, engine
 from .models import User
@@ -160,3 +163,41 @@ def list_documents(current_user: User = Depends(get_current_user)):
         }
         for file in files
     ]
+
+
+
+@app.post("/chat/ask-ai")
+def ask_ai(request: ChatRequest):
+    ai_service = get_ai_service()
+    answer = ai_service.ask(request.question)
+
+    return {
+        "question": request.question,
+        "answer": answer
+    }
+
+
+@app.post("/payments/explain-ai")
+def explain_payment_ai(request: PaymentExplainRequest):
+    ai_service = get_ai_service()
+    payment_service = PaymentService(ai_service)
+
+    explanation = payment_service.explain_payment_message(
+        request.message_type,
+        request.content
+    )
+
+    return {
+        "message_type": request.message_type,
+        "explanation": explanation
+    }
+
+
+@app.get("/ai/health")
+def ai_health():
+    ai_service = get_ai_service()
+
+    return {
+        "provider": "gemini",
+        "available": ai_service.health_check()
+    }
