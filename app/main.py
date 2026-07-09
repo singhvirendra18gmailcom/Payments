@@ -1,5 +1,7 @@
 import os
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+import time
+
+from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
 from app.logger import logger
 from app.services.ai_factory import get_ai_service
@@ -30,6 +32,35 @@ app = FastAPI(title="AI Payment Assistant")
 
 UPLOAD_DIR = "app/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.perf_counter()
+    client_host = request.client.host if request.client else "unknown"
+
+    logger.info(
+        f"Request started: {request.method} {request.url.path} "
+        f"from {client_host}"
+    )
+
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.exception(
+            f"Request failed: {request.method} {request.url.path} "
+            f"after {duration_ms:.2f}ms"
+        )
+        raise
+
+    duration_ms = (time.perf_counter() - start_time) * 1000
+    logger.info(
+        f"Response completed: {request.method} {request.url.path} "
+        f"status={response.status_code} duration={duration_ms:.2f}ms"
+    )
+
+    return response
 
 @app.get("/health")
 def health():
