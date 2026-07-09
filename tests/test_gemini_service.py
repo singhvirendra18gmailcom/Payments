@@ -42,12 +42,11 @@ def test_ask_returns_response_text():
     mock_client.models.generate_content.assert_called_once()
 
 
-def test_ask_returns_validation_message_for_empty_question():
+def test_ask_raises_validation_error_for_empty_question():
     service = make_service(Mock())
 
-    result = service.ask("   ")
-
-    assert result == "Question cannot be empty"
+    with pytest.raises(ValueError, match="Question cannot be empty"):
+        service.ask("   ")
 
 
 def test_ask_returns_fallback_message_when_response_has_no_text():
@@ -60,14 +59,16 @@ def test_ask_returns_fallback_message_when_response_has_no_text():
     assert result == "AI could not generate a response. Please try again."
 
 
-def test_ask_returns_unavailable_message_when_api_fails():
+def test_ask_raises_unavailable_error_when_api_fails():
     mock_client = Mock()
     mock_client.models.generate_content.side_effect = RuntimeError("API failed")
     service = make_service(mock_client)
 
-    result = service.ask("Explain MT103")
-
-    assert result == "AI service is currently unavailable. Please try again later."
+    with pytest.raises(
+        RuntimeError,
+        match="AI service is currently unavailable. Please try again later.",
+    ):
+        service.ask("Explain MT103")
 
 
 def test_health_check_returns_true_when_model_responds():

@@ -18,12 +18,14 @@ class GeminiService(AIService):
 
         self.client = genai.Client(api_key=GEMINI_API_KEY)
         self.model = GEMINI_MODEL
+        logger.info(f"Using Gemini model: {self.model}")
+        logger.info(f"Gemini API Key starts with: {GEMINI_API_KEY[:8]}")
 
     def ask(self, question: str) -> str:
-        try:
-            if not question or not question.strip():
-                raise ValueError("Question cannot be empty")
+        if not question or not question.strip():
+            raise ValueError("Question cannot be empty")
 
+        try:
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=question,
@@ -37,13 +39,11 @@ class GeminiService(AIService):
 
             return response.text
 
-        except ValueError as ex:
-            logger.warning(f"Validation error in GeminiService: {ex}")
-            return str(ex)
-
         except Exception as ex:
             logger.exception("Gemini API error")
-            return "AI service is currently unavailable. Please try again later."
+            raise RuntimeError(
+                "AI service is currently unavailable. Please try again later."
+            ) from ex
 
     def explain_payment(self, message_type: str, content: str) -> str:
         prompt = f"""
