@@ -35,6 +35,21 @@ app = FastAPI(title="AI Payment Assistant")
 UPLOAD_DIR = "app/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+AI_UNAVAILABLE_MESSAGE = "AI service is currently unavailable. Please try again later."
+
+
+def ai_error_response(error: str | None = None) -> JSONResponse:
+    content = {
+        "status": "error",
+        "provider": AI_PROVIDER,
+        "message": AI_UNAVAILABLE_MESSAGE,
+    }
+
+    if error:
+        content["error"] = error
+
+    return JSONResponse(status_code=503, content=content)
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -135,7 +150,15 @@ def payment_explain(
     current_user: User = Depends(get_current_user)
 ):
     logger.info("payment explain endpoint called")
-    explanation = explain_payment(request.message_type, request.content)
+
+    try:
+        explanation = explain_payment(request.message_type, request.content)
+    except ValueError as ex:
+        logger.warning(f"Invalid payment explain request: {ex}")
+        raise HTTPException(status_code=400, detail=str(ex))
+    except Exception as ex:
+        logger.exception("Payment explanation API failed")
+        return ai_error_response(str(ex))
 
     return {
         "message_type": request.message_type,
@@ -148,7 +171,15 @@ def chat_ask(
     current_user: User = Depends(get_current_user)
 ):
     logger.info("chat ask endpoint called")
-    answer = answer_question(request.question)
+
+    try:
+        answer = answer_question(request.question)
+    except ValueError as ex:
+        logger.warning(f"Invalid chat request: {ex}")
+        raise HTTPException(status_code=400, detail=str(ex))
+    except Exception as ex:
+        logger.exception("Chat API failed")
+        return ai_error_response(str(ex))
 
     return {
         "question": request.question,
@@ -201,8 +232,17 @@ def list_documents(current_user: User = Depends(get_current_user)):
 
 @app.post("/chat/ask-ai")
 def ask_ai(request: ChatRequest):
-    ai_service = get_ai_service()
-    answer = ai_service.ask(request.question)
+    logger.info("AI chat endpoint called")
+
+    try:
+        ai_service = get_ai_service()
+        answer = ai_service.ask(request.question)
+    except ValueError as ex:
+        logger.warning(f"Invalid AI chat request: {ex}")
+        raise HTTPException(status_code=400, detail=str(ex))
+    except Exception as ex:
+        logger.exception("AI chat API failed")
+        return ai_error_response(str(ex))
 
     return {
         "question": request.question,
@@ -212,13 +252,21 @@ def ask_ai(request: ChatRequest):
 
 @app.post("/payments/explain-ai")
 def explain_payment_ai(request: PaymentExplainRequest):
-    ai_service = get_ai_service()
-    payment_service = PaymentService(ai_service)
+    logger.info("AI payment explain endpoint called")
 
-    explanation = payment_service.explain_payment_message(
-        request.message_type,
-        request.content
-    )
+    try:
+        ai_service = get_ai_service()
+        payment_service = PaymentService(ai_service)
+        explanation = payment_service.explain_payment_message(
+            request.message_type,
+            request.content
+        )
+    except ValueError as ex:
+        logger.warning(f"Invalid AI payment explain request: {ex}")
+        raise HTTPException(status_code=400, detail=str(ex))
+    except Exception as ex:
+        logger.exception("AI payment explanation API failed")
+        return ai_error_response(str(ex))
 
     return {
         "message_type": request.message_type,
