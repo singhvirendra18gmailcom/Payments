@@ -4,7 +4,15 @@ import time
 from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from app.config import AI_PROVIDER
+from app.config import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    AI_PROVIDER,
+    ALGORITHM,
+    DATABASE_URL,
+    GEMINI_API_KEY,
+    GEMINI_MODEL,
+    SECRET_KEY,
+)
 from app.logger import logger
 from app.services.ai_factory import get_ai_service
 from app.services.payment_service import PaymentService
@@ -36,6 +44,58 @@ UPLOAD_DIR = "app/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 AI_UNAVAILABLE_MESSAGE = "AI service is currently unavailable. Please try again later."
+SUPPORTED_AI_PROVIDERS = {"gemini"}
+SUPPORTED_JWT_ALGORITHMS = {"HS256"}
+PLACEHOLDER_GEMINI_KEYS = {
+    "test_api_key_for_local_and_ci",
+    "your_gemini_api_key",
+}
+
+
+def validate_configuration() -> None:
+    errors = []
+    warnings = []
+
+    if not SECRET_KEY or not SECRET_KEY.strip():
+        errors.append("SECRET_KEY is required")
+
+    if ALGORITHM not in SUPPORTED_JWT_ALGORITHMS:
+        errors.append(
+            f"ALGORITHM must be one of {sorted(SUPPORTED_JWT_ALGORITHMS)}"
+        )
+
+    if ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
+        errors.append("ACCESS_TOKEN_EXPIRE_MINUTES must be greater than 0")
+
+    if not DATABASE_URL or not DATABASE_URL.strip():
+        errors.append("DATABASE_URL is required")
+
+    if AI_PROVIDER.lower().strip() not in SUPPORTED_AI_PROVIDERS:
+        errors.append(
+            f"AI_PROVIDER must be one of {sorted(SUPPORTED_AI_PROVIDERS)}"
+        )
+
+    if AI_PROVIDER.lower().strip() == "gemini":
+        if not GEMINI_MODEL or not GEMINI_MODEL.strip():
+            errors.append("GEMINI_MODEL is required when AI_PROVIDER=gemini")
+
+        if not GEMINI_API_KEY or not GEMINI_API_KEY.strip():
+            errors.append("GEMINI_API_KEY is required when AI_PROVIDER=gemini")
+        elif GEMINI_API_KEY in PLACEHOLDER_GEMINI_KEYS:
+            warnings.append(
+                "GEMINI_API_KEY is using a placeholder value; "
+                "Gemini API calls will fail until a real key is configured"
+            )
+
+    for warning in warnings:
+        logger.warning(f"Configuration warning: {warning}")
+
+    if errors:
+        message = "; ".join(errors)
+        logger.error(f"Configuration validation failed: {message}")
+        raise RuntimeError(message)
+
+    logger.info("Configuration validation passed")
 
 
 def ai_error_response(error: str | None = None) -> JSONResponse:
@@ -49,6 +109,11 @@ def ai_error_response(error: str | None = None) -> JSONResponse:
         content["error"] = error
 
     return JSONResponse(status_code=503, content=content)
+
+
+@app.on_event("startup")
+def validate_app_configuration():
+    validate_configuration()
 
 
 @app.middleware("http")
