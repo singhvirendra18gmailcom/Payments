@@ -44,7 +44,7 @@ UPLOAD_DIR = "app/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 AI_UNAVAILABLE_MESSAGE = "AI service is currently unavailable. Please try again later."
-SUPPORTED_AI_PROVIDERS = {"gemini"}
+SUPPORTED_AI_PROVIDERS = {"gemini", "local"}
 SUPPORTED_JWT_ALGORITHMS = {"HS256"}
 PLACEHOLDER_GEMINI_KEYS = {
     "test_api_key_for_local_and_ci",
