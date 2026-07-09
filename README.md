@@ -112,7 +112,20 @@ ai-payment-assistant/
       payment_service.py
     uploads/
   docs/
-    roadmap.md
+    AI-Integration.md
+    API-Documentation.md
+    Architecture.md
+    Authentication.md
+    Database-Design.md
+    Deployment.md
+    Home.md
+    Installation.md
+    Logging.md
+    Payment-Service.md
+    Project-Overview.md
+    Release-Notes.md
+    Roadmap.md
+    Testing.md
   logs/
     app.log
   tests/
@@ -130,6 +143,30 @@ ai-payment-assistant/
   requirements.txt
   README.md
 ```
+
+## Documentation
+
+The detailed project documentation lives under `docs/`.
+
+Start here:
+
+- [Docs Home](docs/Home.md)
+- [Project Overview](docs/Project-Overview.md)
+- [Installation](docs/Installation.md)
+- [Architecture](docs/Architecture.md)
+- [API Documentation](docs/API-Documentation.md)
+
+Topic guides:
+
+- [Authentication](docs/Authentication.md)
+- [AI Integration](docs/AI-Integration.md)
+- [Payment Service](docs/Payment-Service.md)
+- [Database Design](docs/Database-Design.md)
+- [Logging](docs/Logging.md)
+- [Testing](docs/Testing.md)
+- [Deployment](docs/Deployment.md)
+- [Release Notes](docs/Release-Notes.md)
+- [Roadmap](docs/Roadmap.md)
 
 ## Prerequisites
 
