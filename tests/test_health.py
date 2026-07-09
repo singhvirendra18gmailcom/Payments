@@ -14,3 +14,14 @@ def test_health():
         "status": "ok",
         "app": "AI Payment Assistant"
     }
+
+
+def test_ai_health():
+    response = client.get("/ai/health")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "healthy",
+        "provider": "local",
+        "available": True
+    }
