@@ -45,6 +45,27 @@ class GeminiService(AIService):
             logger.exception("Gemini API error")
             return "AI service is currently unavailable. Please try again later."
 
+    def explain_payment(self, message_type: str, content: str) -> str:
+        prompt = f"""
+Explain the following payment message.
+
+Message Type:
+{message_type}
+
+Message Content:
+{content}
+
+Please include:
+
+1. Purpose
+2. Message Flow
+3. Important Fields
+4. Business Example
+5. Common Validation Errors
+"""
+
+        return self.ask(prompt)
+
     def health_check(self) -> bool:
         try:
             response = self.client.models.generate_content(
