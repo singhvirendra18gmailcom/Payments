@@ -1,8 +1,9 @@
 import os
 import time
-
+from typing import Annotated
 from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.config import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -177,20 +178,22 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         "email": user.email
     }
 
-@app.post("/auth/login", response_model=TokenResponse)
-def login(request: LoginRequest, db: Session = Depends(get_db)):
-    logger.info(f"Login attempt: {request.email}")
-    user = db.query(User).filter(User.email == request.email).first()
+@app.post("/auth/login", response_model=TokenResponse,tags=["Authentication"],summary="Authenticate user")
+def login(
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+        db: Session = Depends(get_db)):
+    logger.info(f"Login attempt: {form_data.username}")
+    user = db.query(User).filter(User.email == form_data.username).first()
 
     if not user:
         logger.warning(
-            f"Login failed: User not found: {request.email}"
+            f"Login failed: User not found: {form_data.username}"
         )
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    if not verify_password(request.password, user.hashed_password):
+    if not verify_password(form_data.password, user.hashed_password):
         logger.warning(
-            f"Login failed: Invalid Email or password: {request.email}"
+            f"Login failed: Invalid Email or password: {form_data.email}"
         )
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
