@@ -1,18 +1,14 @@
 
 from fastapi.testclient import TestClient
 from app.main import app
+from tests.utils import login_test_user, register_test_user
 
 client = TestClient(app)
 
 def test_login():
+    email = register_test_user(client)
 
-    response = client.post(
-        "/auth/login",
-        json={
-            "email": "virendra@test.com",
-            "password": "password123"
-        }
-    )
+    response = login_test_user(client, email)
 
     assert response.status_code == 200
 

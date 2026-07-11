@@ -3,26 +3,36 @@
 import uuid
 
 
-def get_auth_headers(client):
-
+def register_test_user(client, password: str = "password123") -> str:
     email = f"{uuid.uuid4()}@test.com"
 
-    client.post(
+    response = client.post(
         "/auth/register",
         json={
             "name": "Test User",
             "email": email,
-            "password": "password123"
+            "password": password
+        }
+    )
+    assert response.status_code == 200
+
+    return email
+
+
+def login_test_user(client, email: str, password: str = "password123"):
+    return client.post(
+        "/auth/login",
+        data={
+            "username": email,
+            "password": password
         }
     )
 
-    response = client.post(
-        "/auth/login",
-        json={
-            "email": email,
-            "password": "password123"
-        }
-    )
+
+def get_auth_headers(client):
+    email = register_test_user(client)
+    response = login_test_user(client, email)
+    assert response.status_code == 200
 
     token = response.json()["access_token"]
 
