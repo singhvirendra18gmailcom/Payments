@@ -1,606 +1,460 @@
 # AI Payment Assistant
 
-![Python](https://img.shields.io/badge/Python-3.13-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.139-green)
-![License](https://img.shields.io/badge/license-MIT-yellow)
+<p align="center">
+  <strong>AI-powered assistant for understanding SWIFT MT messages, ISO 20022 messages, payment workflows, and payment-domain documentation.</strong>
+</p>
 
-AI Payment Assistant is a FastAPI backend for explaining payment messages, answering payment-domain questions, and practicing production-style backend engineering with authentication, testing, logging, Docker, and AI provider integration.
+<p align="center">
+  <img src="https://img.shields.io/badge/version-2.0.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/Python-3.11%2B-blue" alt="Python">
+  <img src="https://img.shields.io/badge/FastAPI-Backend-green" alt="FastAPI">
+  <img src="https://img.shields.io/badge/AI-Google%20Gemini-orange" alt="Gemini">
+  <img src="https://img.shields.io/badge/License-MIT-lightgrey" alt="License">
+</p>
+
+---
 
 ## Overview
 
-This project is focused on:
+AI Payment Assistant is a FastAPI-based backend application designed to make complex international-payment concepts easier to understand.
 
-- FastAPI REST API development
-- JWT authentication
-- SQLite and SQLAlchemy
-- Payment domain knowledge such as SWIFT MT and ISO 20022
-- AI-assisted payment explanations and chat
-- Provider-based AI service design
-- Request and response logging
-- Configuration validation
-- Unit testing with Pytest
-- Docker and GitHub Actions
+The application can:
 
-Version 2 adds a real AI service layer with Gemini support and a deterministic local AI provider for tests and local fallback behavior.
+- Explain SWIFT MT and ISO 20022 payment messages
+- Answer payment-domain questions using AI
+- Register and authenticate users with JWT
+- Upload and manage payment-related documents
+- Provide application and AI-service health checks
+- Run automated tests through GitHub Actions
 
-## Current Features
+This project combines backend engineering, Generative AI, and international-payments domain knowledge.
 
-### Version 2
+---
 
-- User registration and login
-- JWT-protected APIs
-- Current user API: `/auth/me`
-- Payment message explanation API
-- Basic AI chat API
-- Gemini AI provider integration
-- Local deterministic AI provider for tests and offline development
-- AI health check endpoint
-- Request and response logging
-- API failure handling for AI provider errors
-- Startup configuration validation
-- Document upload and document listing APIs
-- SQLite database
-- Environment variable support
-- Unit tests using Pytest
-- Docker support
+## Features
+
+### Authentication
+
+- User registration
+- User login
+- JWT access-token generation
+- Protected user-profile endpoint
+
+### Payment Explanation
+
+- Explain payment messages using structured logic
+- Generate AI-powered payment explanations
+- Support SWIFT MT and ISO 20022 concepts
+
+### AI Chat
+
+- Ask payment-domain questions
+- Ask general AI questions
+- Integrate with Google Gemini
+
+### Document Management
+
+- Upload payment-domain documents
+- List uploaded documents
+- Protect document APIs using authentication
+
+### Engineering and Operations
+
+- Environment-based configuration
+- Structured application logging
+- SQLAlchemy database integration
+- Pytest unit and API testing
+- GitHub Actions continuous integration
+- Health and AI-service health endpoints
+
+---
 
 ## Technology Stack
 
-| Category | Technology |
-|----------|------------|
-| Language | Python 3.13 |
-| Backend | FastAPI |
+| Area | Technology |
+|---|---|
+| Programming language | Python |
+| API framework | FastAPI |
+| AI provider | Google Gemini |
+| Database ORM | SQLAlchemy |
 | Database | SQLite |
-| ORM | SQLAlchemy |
 | Authentication | JWT |
 | Validation | Pydantic |
-| AI Provider | Google Gemini |
-| Local AI Fallback | LocalAIService |
 | Testing | Pytest |
-| Logging | Python logging |
-| Containerization | Docker |
-| Environment Management | python-dotenv |
+| CI/CD | GitHub Actions |
+| API documentation | Swagger UI / OpenAPI |
+
+---
 
 ## Architecture
 
-```text
-Client
-  |
-  v
-FastAPI REST APIs
-  |
-  +-- JWT Authentication
-  +-- Payment APIs
-  +-- Chat APIs
-  +-- Document APIs
-  +-- AI Health API
-  |
-  +-- PaymentService
-  |     |
-  |     v
-  |   AIService interface
-  |     |
-  |     +-- GeminiService
-  |     +-- LocalAIService
-  |
-  v
-SQLite Database
+```mermaid
+flowchart LR
+    U[User / API Client] --> F[FastAPI Application]
+
+    F --> A[Authentication Module]
+    F --> P[Payment Explanation Module]
+    F --> C[AI Chat Module]
+    F --> D[Document Module]
+    F --> H[Health Module]
+
+    A --> DB[(SQLite Database)]
+    D --> FS[(Document Storage)]
+
+    P --> G[Google Gemini API]
+    C --> G
+
+    F --> L[Structured Logging]
+    F --> T[Pytest Test Suite]
+    T --> CI[GitHub Actions]
 ```
 
-Future architecture may add OpenAI, Ollama, RAG, ChromaDB, PostgreSQL, and PDF/document intelligence.
+### Request Flow
+
+1. A user registers or logs in.
+2. The application generates a JWT access token.
+3. The user authorizes protected API requests.
+4. FastAPI validates the request using Pydantic models.
+5. The appropriate service processes the request.
+6. AI-enabled endpoints call Google Gemini.
+7. The API returns a structured JSON response.
+8. Important events and errors are recorded through application logging.
+
+---
+
+## API Documentation
+
+After starting the application, open:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Alternative OpenAPI documentation:
+
+```text
+http://127.0.0.1:8000/redoc
+```
+
+---
+
+## Screenshots
+
+### Swagger API Overview
+
+![Swagger API Overview](docs/images/swagger-api.png)
+
+### User Login
+
+![User Login](docs/images/login-api.png)
+
+### AI Payment Explanation
+
+![AI Payment Explanation](docs/images/payment-explanation.png)
+
+### Document Upload
+
+![Document Upload](docs/images/document-upload.png)
+
+### GitHub Actions
+
+![GitHub Actions](docs/images/github-actions.png)
+
+> Add the corresponding image files under `docs/images/`. Remove any passwords, API keys, JWT tokens, personal data, or real payment information before publishing screenshots.
+
+---
 
 ## Project Structure
 
 ```text
 ai-payment-assistant/
-  app/
-    __init__.py
-    auth.py
-    config.py
-    database.py
-    logger.py
-    main.py
-    models.py
-    payment_service.py
-    schemas.py
-    services/
-      __init__.py
-      ai_factory.py
-      ai_service.py
-      gemini_service.py
-      local_ai_service.py
-      payment_service.py
-    uploads/
-  docs/
-    AI-Integration.md
-    API-Documentation.md
-    Architecture.md
-    Authentication.md
-    Database-Design.md
-    Deployment.md
-    Home.md
-    Installation.md
-    Logging.md
-    Payment-Service.md
-    Project-Overview.md
-    Release-Notes.md
-    Roadmap.md
-    Testing.md
-  logs/
-    app.log
-  tests/
-    __init__.py
-    conftest.py
-    test_auth.py
-    test_chat.py
-    test_gemini_service.py
-    test_health.py
-    test_login.py
-    test_payment.py
-    utils.py
-  Dockerfile
-  docker-compose.yml
-  requirements.txt
-  README.md
+├── app/
+│   ├── routers/
+│   │   ├── auth.py
+│   │   ├── chat.py
+│   │   ├── documents.py
+│   │   ├── health.py
+│   │   └── payments.py
+│   ├── services/
+│   ├── models/
+│   ├── schemas/
+│   ├── config.py
+│   ├── database.py
+│   └── main.py
+├── tests/
+├── docs/
+│   └── images/
+├── .github/
+│   └── workflows/
+├── .env.example
+├── .gitignore
+├── requirements.txt
+├── README.md
+└── LICENSE
 ```
 
-## Documentation
+Adjust this structure so it matches the actual folders and filenames in your repository.
 
-The detailed project documentation lives under `docs/`.
-
-Start here:
-
-- [Docs Home](docs/Home.md)
-- [Project Overview](docs/Project-Overview.md)
-- [Installation](docs/Installation.md)
-- [Architecture](docs/Architecture.md)
-- [API Documentation](docs/API-Documentation.md)
-
-Topic guides:
-
-- [Authentication](docs/Authentication.md)
-- [AI Integration](docs/AI-Integration.md)
-- [Payment Service](docs/Payment-Service.md)
-- [Database Design](docs/Database-Design.md)
-- [Logging](docs/Logging.md)
-- [Testing](docs/Testing.md)
-- [Deployment](docs/Deployment.md)
-- [Release Notes](docs/Release-Notes.md)
-- [Roadmap](docs/Roadmap.md)
-
-## Prerequisites
-
-- Python 3.13+
-- Git
-- Docker Desktop, optional
-- VS Code or PyCharm
-- Gemini API key, required only when using `AI_PROVIDER=gemini`
+---
 
 ## Installation
 
-Clone the repository:
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ai-payment-assistant.git
+git clone https://github.com/YOUR-USERNAME/ai-payment-assistant.git
 cd ai-payment-assistant
 ```
 
-Create and activate a virtual environment:
+### 2. Create a virtual environment
 
-```bash
+#### Windows PowerShell
+
+```powershell
 python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-Windows:
+#### macOS or Linux
 
 ```bash
-.venv\Scripts\activate
-```
-
-Linux or macOS:
-
-```bash
+python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-Install dependencies:
+### 3. Install dependencies
 
 ```bash
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## Environment Variables
+### 4. Create the environment file
 
-Create a `.env` file:
+Copy the example file:
+
+#### Windows PowerShell
+
+```powershell
+Copy-Item .env.example .env
+```
+
+#### macOS or Linux
 
 ```bash
 cp .env.example .env
 ```
 
-Supported settings:
+Update `.env` with your local configuration:
 
 ```env
-SECRET_KEY=my_super_secret_key
+SECRET_KEY=replace_with_a_strong_secret_key
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
-DATABASE_URL=sqlite:///./payment_assistant.db
-
-AI_PROVIDER=gemini
-GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-2.0-flash
+DATABASE_URL=sqlite:///./ai_payment_assistant.db
+GEMINI_API_KEY=replace_with_your_gemini_api_key
 ```
 
-For offline/local development without calling Gemini:
+Never commit your real `.env` file.
 
-```env
-AI_PROVIDER=local
-```
-
-Tests force `AI_PROVIDER=local` through `tests/conftest.py`, so they do not call external AI APIs.
-
-## Configuration Validation
-
-The app validates configuration on startup.
-
-It checks:
-
-- `SECRET_KEY` is present
-- `ALGORITHM` is supported
-- `ACCESS_TOKEN_EXPIRE_MINUTES` is greater than 0
-- `DATABASE_URL` is present
-- `AI_PROVIDER` is supported
-- `GEMINI_API_KEY` and `GEMINI_MODEL` are present when `AI_PROVIDER=gemini`
-
-Supported providers today:
-
-```text
-gemini
-local
-```
-
-## Running Locally
-
-Start the application:
+### 5. Start the application
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-Open Swagger UI:
+The application will be available at:
 
 ```text
-http://localhost:8000/docs
+http://127.0.0.1:8000
 ```
 
-Open the health endpoints:
+### 6. Open Swagger UI
 
 ```text
-http://localhost:8000/health
-http://localhost:8000/ai/health
+http://127.0.0.1:8000/docs
 ```
 
-## Running Tests
+---
 
-Use the project virtual environment:
+## Testing
+
+Run all tests:
 
 ```bash
-.venv\Scripts\python.exe -m pytest -q
+pytest
 ```
 
-Run a focused test file:
+Run tests with detailed output:
 
 ```bash
-.venv\Scripts\python.exe -m pytest tests/test_gemini_service.py -q
+pytest -v
 ```
 
-Run coverage:
+Run tests with coverage when `pytest-cov` is installed:
 
 ```bash
-.venv\Scripts\python.exe -m pytest --cov=app
+pytest --cov=app --cov-report=term-missing
 ```
 
-## Running with Docker
+---
 
-Build the image:
+## Main API Endpoints
+
+| Method | Endpoint | Description | Authentication |
+|---|---|---|---|
+| GET | `/health` | Application health check | No |
+| GET | `/ai/health` | AI-service health check | No |
+| POST | `/auth/register` | Register a new user | No |
+| POST | `/auth/login` | Authenticate user | No |
+| GET | `/auth/me` | Get current user profile | Yes |
+| POST | `/payments/explain` | Explain payment message | Yes |
+| POST | `/payments/explain-ai` | Explain payment using AI | No/Yes* |
+| POST | `/chat/ask` | Ask Payment Assistant | Yes |
+| POST | `/chat/ask-ai` | Ask General AI Assistant | No/Yes* |
+| POST | `/documents/upload` | Upload payment document | Yes |
+| GET | `/documents` | List uploaded documents | Yes |
+
+\* Update the authentication status to match your current implementation.
+
+---
+
+## Example Usage
+
+### Register a user
 
 ```bash
-docker compose build
+curl -X POST "http://127.0.0.1:8000/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Example User",
+    "email": "user@example.com",
+    "password": "StrongPassword123"
+  }'
 ```
 
-Start the application:
+### Log in
 
 ```bash
-docker compose up
+curl -X POST "http://127.0.0.1:8000/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "StrongPassword123"
+  }'
 ```
 
-Open:
+### Explain a payment message
+
+```bash
+curl -X POST "http://127.0.0.1:8000/payments/explain-ai" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message_type": "pacs.008",
+    "content": "Add a safe sample payment message here"
+  }'
+```
+
+---
+
+## Security
+
+- Passwords should be stored only as secure hashes.
+- Protected endpoints require JWT authentication.
+- Secrets are loaded from environment variables.
+- `.env` must remain excluded through `.gitignore`.
+- Screenshots and examples must not contain real customer or payment data.
+- API responses should avoid exposing internal exception details.
+- Uploaded documents should be validated for file type and size.
+
+---
+
+## Continuous Integration
+
+GitHub Actions runs the automated test suite when code is pushed or a pull request is created.
+
+Suggested workflow checks:
+
+- Install Python
+- Install project dependencies
+- Run Pytest
+- Fail the workflow when tests fail
+
+Workflow file location:
 
 ```text
-http://localhost:8000/docs
+.github/workflows/tests.yml
 ```
 
-Stop containers:
+---
 
-```bash
-docker compose down
-```
+## Current Version
 
-## API Endpoints
+### Version 2.0.0
 
-| Method | Endpoint | Auth Required | Description |
-|--------|----------|---------------|-------------|
-| GET | `/health` | No | Application health check |
-| GET | `/ai/health` | No | AI provider health check |
-| POST | `/auth/register` | No | Register a new user |
-| POST | `/auth/login` | No | Login and get JWT token |
-| GET | `/auth/me` | Yes | Get current user |
-| POST | `/payments/explain` | Yes | Explain payment messages |
-| POST | `/chat/ask` | Yes | Ask payment-related questions |
-| POST | `/documents/upload` | Yes | Upload PDF, TXT, or DOCX documents |
-| GET | `/documents` | Yes | List uploaded documents |
-| POST | `/chat/ask-ai` | No | Direct AI chat endpoint |
-| POST | `/payments/explain-ai` | No | Direct AI payment explanation endpoint |
+Version 2 includes:
 
-## Example API Requests
+- JWT authentication
+- Payment-message explanation
+- AI-powered payment explanation
+- AI chat endpoints
+- Document upload and listing
+- Structured logging
+- Automated testing
+- GitHub Actions CI
+- Improved Swagger documentation
 
-### Register User
-
-```http
-POST /auth/register
-```
-
-```json
-{
-  "name": "Virendra Singh",
-  "email": "virendra@test.com",
-  "password": "password123"
-}
-```
-
-### Login
-
-```http
-POST /auth/login
-```
-
-```json
-{
-  "email": "virendra@test.com",
-  "password": "password123"
-}
-```
-
-Response:
-
-```json
-{
-  "access_token": "jwt-token",
-  "token_type": "bearer"
-}
-```
-
-### Ask A Payment Question
-
-```http
-POST /chat/ask
-Authorization: Bearer <jwt-token>
-```
-
-```json
-{
-  "question": "What is MT103 used for?"
-}
-```
-
-### Explain Payment Message
-
-```http
-POST /payments/explain
-Authorization: Bearer <jwt-token>
-```
-
-```json
-{
-  "message_type": "MT103",
-  "content": "Explain MT103"
-}
-```
-
-### AI Health
-
-```http
-GET /ai/health
-```
-
-Healthy response:
-
-```json
-{
-  "status": "healthy",
-  "provider": "gemini",
-  "available": true
-}
-```
-
-Unhealthy response:
-
-```json
-{
-  "status": "unhealthy",
-  "provider": "gemini",
-  "available": false,
-  "error": "AI service is currently unavailable. Please try again later."
-}
-```
-
-## AI Provider Behavior
-
-`GeminiService` is used when:
-
-```env
-AI_PROVIDER=gemini
-GEMINI_API_KEY=<real key>
-```
-
-`LocalAIService` is used when:
-
-```env
-AI_PROVIDER=local
-```
-
-The local provider returns deterministic payment-domain answers and is intended for tests, demos, and offline development.
-
-Gemini quota or provider failures are logged and returned from API endpoints as `503 Service Unavailable`.
-
-## Logging
-
-The app logs to:
-
-```text
-logs/app.log
-```
-
-Request and response logging includes:
-
-- HTTP method
-- request path
-- client host
-- response status code
-- request duration
-- stack traces for unexpected failures
-
-## Error Handling
-
-AI endpoints handle:
-
-- invalid input as `400 Bad Request`
-- provider/API failures as `503 Service Unavailable`
-- successful provider responses as `200 OK`
-
-Example provider failure:
-
-```json
-{
-  "status": "error",
-  "provider": "gemini",
-  "message": "AI service is currently unavailable. Please try again later.",
-  "error": "AI service is currently unavailable. Please try again later."
-}
-```
-
-## GitHub Actions
-
-The project is intended to run tests in CI with GitHub Actions.
-
-Typical workflow:
-
-```text
-Push
-  |
-  v
-GitHub Actions
-  |
-  +-- Install dependencies
-  +-- Run unit tests
-  +-- Verify build
-```
+---
 
 ## Roadmap
 
-### Version 1.0
+Planned Version 3 improvements:
 
-- FastAPI APIs
-- JWT authentication
-- SQLite database
-- Unit tests
+- Retrieval-Augmented Generation
+- Semantic search across uploaded documents
+- Payment-message validation
+- Conversation history
+- Role-based access control
+- PostgreSQL support
+- Docker deployment
+- Cloud deployment
+- Improved monitoring and analytics
+- Web-based frontend
 
-### Version 1.1
+---
 
-- Environment variables
-- Logging
-- Docker support
-- GitHub Actions
-- Improved documentation
+## Learning Outcomes
 
-### Version 2.0
+This project demonstrates practical experience in:
 
-- Gemini AI integration
-- AI service abstraction
-- Local AI fallback provider
-- AI health endpoint
-- AI API failure handling
-- Configuration validation
-- Gemini unit tests
+- FastAPI backend development
+- REST API design
+- JWT-based authentication
+- SQLAlchemy database integration
+- Generative AI integration
+- Payment-domain application design
+- Automated testing
+- Continuous integration
+- Logging and configuration management
+- Technical documentation
 
-### Version 3.0
-
-- OpenAI and Ollama provider support
-- PostgreSQL
-- Better prompt engineering
-- RAG foundation
-
-### Version 4.0
-
-- ChromaDB
-- PDF processing
-- Document intelligence
-- SWIFT MT103 parser
-- ISO 20022 parsing support
-
-### Version 5.0
-
-- Kubernetes deployment
-- Cloud hosting
-- Enterprise CI/CD
-
-## Learning Goals
-
-This project helps practice:
-
-- FastAPI
-- SQLAlchemy
-- JWT authentication
-- Unit testing
-- Docker
-- GitHub Actions
-- Git workflows
-- AI engineering
-- Payment systems
-- RAG systems
-- Kubernetes
-
-## Contributing
-
-Recommended workflow:
-
-1. Fork the repository
-2. Create a feature branch
-3. Write tests
-4. Follow Conventional Commits
-5. Open a Pull Request
-
-Example:
-
-```bash
-git checkout -b feature/add-openai-support
-```
-
-Commit examples:
-
-```bash
-feat(auth): add JWT authentication
-feat(ai): add Gemini provider
-test(ai): add Gemini service tests
-docs(readme): update Version 2 documentation
-fix(ai): return 503 on provider failures
-```
-
-## License
-
-This project is licensed under the MIT License.
+---
 
 ## Author
 
 **Virendra Singh**
 
-Building an AI-powered payment assistant while learning FastAPI, AI engineering, payment systems, Docker, Kubernetes, and modern backend development.
+- GitHub: `https://github.com/YOUR-USERNAME`
+- LinkedIn: `https://www.linkedin.com/in/YOUR-LINKEDIN-PROFILE`
+
+---
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
+
+---
+
+## Disclaimer
+
+This project is intended for learning and demonstration purposes. It must not be used to process real customer data, confidential payment messages, or production financial transactions without appropriate security, compliance, validation, and operational controls.

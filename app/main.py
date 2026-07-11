@@ -39,7 +39,34 @@ from .payment_service import explain_payment, answer_question
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="AI Payment Assistant")
+tags_metadata = [
+    {
+        "name": "Authentication",
+        "description": "User registration, login and JWT authentication."
+    },
+    {
+        "name": "Payments",
+        "description": "Explain SWIFT and ISO 20022 payment messages."
+    },
+    {
+        "name": "Chat",
+        "description": "General AI assistant for payment-related questions."
+    },
+    {
+        "name": "Documents",
+        "description": "Upload and manage payment-related documents."
+    },
+    {
+        "name": "Health",
+        "description": "Application health and readiness checks."
+    }
+]
+app = FastAPI(
+    title="AI Payment Assistant",
+    version="2.0.0",
+    description="AI-powered assistant for understanding SWIFT MT messages, ISO 20022 messages, payment workflows, and payment-domain documentation.",
+    openapi_tags=tags_metadata
+)
 
 UPLOAD_DIR = "app/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -145,7 +172,7 @@ async def log_requests(request: Request, call_next):
 
     return response
 
-@app.get("/health")
+@app.get("/health",tags=["Health"],summary="Health Check")
 def health():
     logger.info("Health endpoint called")
     return {
@@ -153,7 +180,7 @@ def health():
         "app": "AI Payment Assistant"
     }
 
-@app.post("/auth/register")
+@app.post("/auth/register",tags=["Authentication"],summary="Register a new user")
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
     logger.info("user registration endpoint called")
     existing_user = db.query(User).filter(User.email == request.email).first()
