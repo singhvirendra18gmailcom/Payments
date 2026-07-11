@@ -64,8 +64,15 @@ tags_metadata = [
 app = FastAPI(
     title="AI Payment Assistant",
     version="2.0.0",
-    description="AI-powered assistant for understanding SWIFT MT messages, ISO 20022 messages, payment workflows, and payment-domain documentation.",
-    openapi_tags=tags_metadata
+    description="AI-powered assistant for understanding SWIFT MT messages, ISO 20022 messages, and payment-domain documentation.",
+    contact={
+        "name": "Virendra Singh",
+        "url": "https://github.com/singhvirendra18gmailcom",
+        "email": "singh.virendra18@email.com",
+    },
+    license_info={
+        "name": "MIT License",
+    },
 )
 
 UPLOAD_DIR = "app/uploads"
@@ -231,7 +238,7 @@ def login(
         "token_type": "bearer"
     }
 
-@app.get("/auth/me")
+@app.get("/auth/me",tags=["Authentication"],summary="Get current user profile")
 def me(current_user: User = Depends(get_current_user)):
     logger.info("user me endpoint called")
     return {
@@ -239,7 +246,7 @@ def me(current_user: User = Depends(get_current_user)):
         "email": current_user.email
     }
 
-@app.post("/payments/explain")
+@app.post("/payments/explain",tags=["Payments"],summary="Explain Payment Message")
 def payment_explain(
     request: PaymentExplainRequest,
     current_user: User = Depends(get_current_user)
@@ -260,7 +267,7 @@ def payment_explain(
         "explanation": explanation
     }
 
-@app.post("/chat/ask")
+@app.post("/chat/ask",tags=["Chat"],summary="Ask Payment Assistant")
 def chat_ask(
     request: ChatRequest,
     current_user: User = Depends(get_current_user)
@@ -281,7 +288,7 @@ def chat_ask(
         "answer": answer
     }
 
-@app.post("/documents/upload")
+@app.post("/documents/upload",tags=["Documents"],summary="Upload PDF, TXT, or DOCX documents")
 def upload_document(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user)
@@ -310,7 +317,7 @@ def upload_document(
         "status": "uploaded"
     }
 
-@app.get("/documents")
+@app.get("/documents",tags=["Documents"],summary="List uploaded documents")
 def list_documents(current_user: User = Depends(get_current_user)):
     logger.info("list all documents endpoint called")
     files = os.listdir(UPLOAD_DIR)
@@ -325,7 +332,7 @@ def list_documents(current_user: User = Depends(get_current_user)):
 
 
 
-@app.post("/chat/ask-ai")
+@app.post("/chat/ask-ai",tags=["Chat"],summary="Ask General AI Assistant")
 def ask_ai(request: ChatRequest):
     logger.info("AI chat endpoint called")
 
@@ -345,7 +352,7 @@ def ask_ai(request: ChatRequest):
     }
 
 
-@app.post("/payments/explain-ai")
+@app.post("/payments/explain-ai",tags=["Payments"],summary="Explain Payment using AI")
 def explain_payment_ai(request: PaymentExplainRequest):
     logger.info("AI payment explain endpoint called")
 
@@ -369,7 +376,7 @@ def explain_payment_ai(request: PaymentExplainRequest):
     }
 
 
-@app.get("/ai/health")
+@app.get("/ai/health",tags=["Health"],summary="AI Service Health Check")
 def ai_health():
     logger.info("AI health endpoint called")
 
