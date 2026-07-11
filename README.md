@@ -1,4 +1,7 @@
-# AI Payment Assistant
+<p align="center">
+  <img src="docs/images/banner.png" width="100%">
+</p>
+<h1 align="center">AI Payment Assistant</h1>
 
 <p align="center">
   <strong>AI-powered assistant for understanding SWIFT MT messages, ISO 20022 messages, payment workflows, and payment-domain documentation.</strong>
