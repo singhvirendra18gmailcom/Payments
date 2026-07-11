@@ -282,23 +282,33 @@ http://127.0.0.1:8000/docs
 
 ## Testing
 
-Run all tests:
+Run all tests from the project virtual environment:
+
+### Windows PowerShell
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
+
+### macOS or Linux
 
 ```bash
-pytest
+python -m pytest
 ```
 
 Run tests with detailed output:
 
-```bash
-pytest -v
+```powershell
+.\.venv\Scripts\python.exe -m pytest -v
 ```
 
 Run tests with coverage when `pytest-cov` is installed:
 
-```bash
-pytest --cov=app --cov-report=term-missing
+```powershell
+.\.venv\Scripts\python.exe -m pytest --cov=app --cov-report=term-missing
 ```
+
+The test suite uses `AI_PROVIDER=local` from `tests/conftest.py`, so tests do not call the external Gemini API.
 
 ---
 
@@ -309,16 +319,14 @@ pytest --cov=app --cov-report=term-missing
 | GET | `/health` | Application health check | No |
 | GET | `/ai/health` | AI-service health check | No |
 | POST | `/auth/register` | Register a new user | No |
-| POST | `/auth/login` | Authenticate user | No |
+| POST | `/auth/login` | Authenticate user with OAuth2 password form data | No |
 | GET | `/auth/me` | Get current user profile | Yes |
 | POST | `/payments/explain` | Explain payment message | Yes |
-| POST | `/payments/explain-ai` | Explain payment using AI | No/Yes* |
+| POST | `/payments/explain-ai` | Explain payment using AI | No |
 | POST | `/chat/ask` | Ask Payment Assistant | Yes |
-| POST | `/chat/ask-ai` | Ask General AI Assistant | No/Yes* |
+| POST | `/chat/ask-ai` | Ask General AI Assistant | No |
 | POST | `/documents/upload` | Upload payment document | Yes |
 | GET | `/documents` | List uploaded documents | Yes |
-
-\* Update the authentication status to match your current implementation.
 
 ---
 
@@ -340,23 +348,27 @@ curl -X POST "http://127.0.0.1:8000/auth/register" \
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "StrongPassword123"
-  }'
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=user@example.com&password=StrongPassword123"
 ```
+
+The login endpoint follows FastAPI's OAuth2 password flow. Use `username` for the registered email address.
 
 ### Explain a payment message
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/payments/explain-ai" \
+TOKEN="paste_access_token_here"
+
+curl -X POST "http://127.0.0.1:8000/payments/explain" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "message_type": "pacs.008",
     "content": "Add a safe sample payment message here"
   }'
 ```
+
+Use `/payments/explain-ai` for the AI-powered public endpoint.
 
 ---
 
