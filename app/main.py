@@ -63,7 +63,7 @@ tags_metadata = [
 ]
 app = FastAPI(
     title="AI Payment Assistant",
-    version="2.0.0",
+    version="3.0.0",
     description="AI-powered assistant for understanding SWIFT MT messages, ISO 20022 messages, and payment-domain documentation.",
     contact={
         "name": "Virendra Singh",
