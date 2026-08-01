@@ -1,4 +1,7 @@
-from pydantic import BaseModel, EmailStr , Field
+from pydantic import BaseModel, EmailStr , Field,  ConfigDict
+
+from datetime import datetime
+
 
 class RegisterRequest(BaseModel):
     name: str
@@ -26,3 +29,13 @@ class PaymentExplainRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     question: str
+
+class DocumentUploadResponse(BaseModel):
+    id: int
+    original_filename: str
+    content_type: str
+    file_size: int
+    processing_status: str
+    uploaded_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

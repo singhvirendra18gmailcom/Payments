@@ -36,6 +36,10 @@ from .auth import (
     get_current_user
 )
 from .payment_service import explain_payment, answer_question
+from app.documents.router import router as document_router
+from app.database import Base, engine
+from app.documents.models import Document
+from app.models import  User
 
 Base.metadata.create_all(bind=engine)
 
@@ -288,7 +292,9 @@ def chat_ask(
         "answer": answer
     }
 
-@app.post("/documents/upload",tags=["Documents"],summary="Upload PDF, TXT, or DOCX documents")
+app.include_router(document_router)
+
+@app.post("/documents/upload/v2",tags=["Documents"],summary="Upload PDF, TXT, or DOCX documents")
 def upload_document(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user)
