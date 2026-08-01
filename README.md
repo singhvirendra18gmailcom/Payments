@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.0.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-3.0.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/Python-3.11%2B-blue" alt="Python">
   <img src="https://img.shields.io/badge/FastAPI-Backend-green" alt="FastAPI">
   <img src="https://img.shields.io/badge/AI-Google%20Gemini-orange" alt="Gemini">
@@ -57,9 +57,10 @@ This project combines backend engineering, Generative AI, and international-paym
 
 ### Document Management
 
-- Upload payment-domain documents
-- List uploaded documents
-- Protect document APIs using authentication
+- Upload payment-domain documents with authenticated metadata tracking
+- Store uploaded files on disk
+- Persist document metadata in SQLite
+- Keep legacy local upload endpoints available
 
 ### Engineering and Operations
 
@@ -102,7 +103,8 @@ flowchart LR
     F --> H[Health Module]
 
     A --> DB[(SQLite Database)]
-    D --> FS[(Document Storage)]
+    D --> FS[(Local Document Storage)]
+    D --> DB
 
     P --> G[Google Gemini API]
     C --> G
@@ -119,7 +121,7 @@ flowchart LR
 3. The user authorizes protected API requests.
 4. FastAPI validates the request using Pydantic models.
 5. The appropriate service processes the request.
-6. AI-enabled endpoints call Google Gemini.
+6. AI-enabled endpoints call Google Gemini when configured.
 7. The API returns a structured JSON response.
 8. Important events and errors are recorded through application logging.
 
@@ -172,31 +174,29 @@ http://127.0.0.1:8000/redoc
 ```text
 ai-payment-assistant/
 ├── app/
-│   ├── routers/
-│   │   ├── auth.py
-│   │   ├── chat.py
-│   │   ├── documents.py
-│   │   ├── health.py
-│   │   └── payments.py
+│   ├── documents/
+│   │   ├── config.py
+│   │   ├── models.py
+│   │   ├── router.py
+│   │   └── service.py
 │   ├── services/
-│   ├── models/
-│   ├── schemas/
+│   ├── auth.py
 │   ├── config.py
 │   ├── database.py
-│   └── main.py
-├── tests/
+│   ├── logger.py
+│   ├── main.py
+│   ├── models.py
+│   ├── payment_service.py
+│   └── schemas.py
 ├── docs/
-│   └── images/
+├── logs/
+├── tests/
+├── uploads/
 ├── .github/
-│   └── workflows/
 ├── .env.example
-├── .gitignore
 ├── requirements.txt
-├── README.md
-└── LICENSE
+└── README.md
 ```
-
-Adjust this structure so it matches the actual folders and filenames in your repository.
 
 ---
 
@@ -325,8 +325,9 @@ The test suite uses `AI_PROVIDER=local` from `tests/conftest.py`, so tests do no
 | POST | `/payments/explain-ai` | Explain payment using AI | No |
 | POST | `/chat/ask` | Ask Payment Assistant | Yes |
 | POST | `/chat/ask-ai` | Ask General AI Assistant | No |
-| POST | `/documents/upload` | Upload payment document | Yes |
-| GET | `/documents` | List uploaded documents | Yes |
+| POST | `/documents/upload` | Upload PDF or TXT document, persist metadata, and save the file under `uploads/documents` | Yes |
+| POST | `/documents/upload/v2` | Upload PDF, TXT, or DOCX document to the legacy local storage path | Yes |
+| GET | `/documents` | List uploaded documents from the legacy local upload directory | Yes |
 
 ---
 
@@ -370,6 +371,27 @@ curl -X POST "http://127.0.0.1:8000/payments/explain" \
 
 Use `/payments/explain-ai` for the AI-powered public endpoint.
 
+### Upload a document
+
+The primary upload endpoint is `/documents/upload`. It accepts authenticated multipart uploads, allows only PDF and TXT files, enforces a 10 MB limit, stores the file under `uploads/documents`, and creates a document record in the database.
+
+```bash
+curl -X POST "http://127.0.0.1:8000/documents/upload" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@sample-document.pdf;type=application/pdf"
+```
+
+Expected response fields:
+
+- `document_id`
+- `original_filename`
+- `content_type`
+- `file_size`
+- `processing_status`
+- `uploaded_at`
+
+The older `/documents/upload/v2` endpoint still exists for direct local file storage and also accepts `.docx` files.
+
 ---
 
 ## Security
@@ -381,6 +403,7 @@ Use `/payments/explain-ai` for the AI-powered public endpoint.
 - Screenshots and examples must not contain real customer or payment data.
 - API responses should avoid exposing internal exception details.
 - Uploaded documents should be validated for file type and size.
+- `/documents/upload` accepts only PDF and TXT files and enforces a 10 MB size limit.
 
 ---
 
@@ -405,15 +428,16 @@ Workflow file location:
 
 ## Current Version
 
-### Version 2.0.0
+### Version 3.0.0
 
-Version 2 includes:
+Version 3 includes:
 
 - JWT authentication
 - Payment-message explanation
 - AI-powered payment explanation
 - AI chat endpoints
-- Document upload and listing
+- Document upload with database-backed metadata
+- Legacy local document upload and listing
 - Structured logging
 - Automated testing
 - GitHub Actions CI
