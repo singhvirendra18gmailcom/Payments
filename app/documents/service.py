@@ -13,6 +13,16 @@ from .config import (
     READ_CHUNK_SIZE,
     UPLOAD_DIRECTORY,
 )
+from datetime import datetime, timezone
+
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.documents.models import Document
+from app.documents.text_extractor import (
+    DocumentExtractionError,
+    extract_document_text,
+)
 
 
 def validate_basic_file_details(file: UploadFile) -> str:
@@ -153,4 +163,101 @@ async def upload_document(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="The document could not be saved.",
+        )
+    
+def process_document_text(
+    *,
+    document_id: int,
+    current_user_id: int,
+    db: Session,
+) -> Document:
+    """
+    Extract text from an uploaded document and update its database record.
+    """
+
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id,
+            Document.uploaded_by == current_user_id,
+        )
+        .first()
+    )
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+
+    if document.processing_status == "processing":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Document processing is already in progress.",
+        )
+
+    document.processing_status = "processing"
+    document.error_message = None
+
+    try:
+        db.commit()
+
+        extraction_result = extract_document_text(
+            file_path=document.file_path,
+            file_extension=document.file_extension,
+        )
+
+        document.extracted_text = extraction_result.text
+        document.page_count = extraction_result.page_count
+        document.processing_status = "completed"
+        document.processed_at = datetime.now(timezone.utc)
+        document.error_message = None
+
+        db.commit()
+        db.refresh(document)
+
+        return document
+
+    except DocumentExtractionError as exc:
+        db.rollback()
+
+        document = (
+            db.query(Document)
+            .filter(Document.id == document_id)
+            .first()
+        )
+
+        if document is not None:
+            document.processing_status = "failed"
+            document.error_message = str(exc)
+            document.processed_at = datetime.now(timezone.utc)
+
+            db.commit()
+
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        )
+
+    except Exception:
+        db.rollback()
+
+        document = (
+            db.query(Document)
+            .filter(Document.id == document_id)
+            .first()
+        )
+
+        if document is not None:
+            document.processing_status = "failed"
+            document.error_message = (
+                "An unexpected document-processing error occurred."
+            )
+            document.processed_at = datetime.now(timezone.utc)
+
+            db.commit()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="The document could not be processed.",
         )

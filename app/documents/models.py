@@ -51,6 +51,14 @@ class Document(Base):
         nullable=False,
         default="uploaded",
     )
+    extracted_text = Column(
+        Text,
+        nullable=True,
+    )
+    page_count = Column(
+        Integer,
+        nullable=True,
+    )
 
     error_message = Column(
         Text,
@@ -70,5 +78,9 @@ class Document(Base):
         nullable=False,
     )
 
-    # Optional relationship
+    processed_at = Column(
+        DateTime,
+        nullable=True,
+    )
+
     owner = relationship("User")
