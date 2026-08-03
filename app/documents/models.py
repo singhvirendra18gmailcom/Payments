@@ -4,7 +4,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
-
+from sqlalchemy.orm import relationship
 
 class Document(Base):
     __tablename__ = "documents"
@@ -81,6 +81,12 @@ class Document(Base):
     processed_at = Column(
         DateTime,
         nullable=True,
+    )
+
+    chunks = relationship(
+        "DocumentChunk",
+        back_populates="document",
+        cascade="all, delete-orphan",
     )
 
     owner = relationship("User")

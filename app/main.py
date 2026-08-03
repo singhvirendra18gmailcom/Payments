@@ -40,6 +40,8 @@ from app.documents.router import router as document_router
 from app.database import Base, engine
 from app.documents.models import Document
 from app.models import  User
+from app.documents.models import Document
+from app.documents.chunk_models import DocumentChunk
 
 Base.metadata.create_all(bind=engine)
 
@@ -63,7 +65,23 @@ tags_metadata = [
     {
         "name": "Health",
         "description": "Application health and readiness checks."
-    }
+    },
+    {
+        "name": "AI Chat",
+        "description": "General AI chat and payment explanation APIs.",
+    },
+    {
+        "name": "Document Upload",
+        "description": "Upload and manage payment documents.",
+    },
+    {
+        "name": "Document Processing",
+        "description": "Extract text, split into chunks and prepare documents for AI search.",
+    },
+    {
+        "name": "Document Query",
+        "description": "Retrieve document text and ask AI questions (RAG).",
+    },
 ]
 app = FastAPI(
     title="AI Payment Assistant",

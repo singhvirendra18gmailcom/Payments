@@ -5,6 +5,12 @@ from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.documents.models import Document
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.documents.chunk_models import DocumentChunk
+from app.documents.models import Document
+from app.documents.text_chunker import split_text_into_chunks
 
 from .config import (
     ALLOWED_CONTENT_TYPES,
@@ -164,7 +170,7 @@ async def upload_document(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="The document could not be saved.",
         )
-    
+
 def process_document_text(
     *,
     document_id: int,
@@ -261,3 +267,98 @@ def process_document_text(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="The document could not be processed.",
         )
+
+def create_document_chunks(
+    *,
+    document_id: int,
+    current_user_id: int,
+    db: Session,
+    chunk_size: int = 1000,
+    chunk_overlap: int = 150,
+) -> list[DocumentChunk]:
+    """
+    Split extracted text and save chunks in the database.
+    """
+
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id,
+            Document.uploaded_by == current_user_id,
+        )
+        .first()
+    )
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+
+    if document.processing_status != "completed":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Document text extraction must be completed "
+                "before chunking."
+            ),
+        )
+
+    if not document.extracted_text:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="The document does not contain extracted text.",
+        )
+
+    try:
+        generated_chunks = split_text_into_chunks(
+            text=document.extracted_text,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+        )
+
+        # Prevent duplicate chunks when the endpoint is called again.
+        (
+            db.query(DocumentChunk)
+            .filter(DocumentChunk.document_id == document.id)
+            .delete(synchronize_session=False)
+        )
+
+        database_chunks: list[DocumentChunk] = []
+
+        for chunk in generated_chunks:
+            database_chunk = DocumentChunk(
+                document_id=document.id,
+                chunk_order=chunk.order,
+                chunk_text=chunk.text,
+                character_count=chunk.character_count,
+                word_count=chunk.word_count,
+            )
+
+            db.add(database_chunk)
+            database_chunks.append(database_chunk)
+
+        document.processing_status = "chunked"
+
+        db.commit()
+
+        for chunk in database_chunks:
+            db.refresh(chunk)
+
+        return database_chunks
+
+    except ValueError as exc:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    except Exception as exc:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Document chunking failed.",
+        ) from exc

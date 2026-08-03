@@ -7,23 +7,30 @@ from app.auth import get_db
 from app.models import User
 from app.schemas import DocumentUploadResponse
 from app.auth import get_current_user
+from .chunk_models import DocumentChunk
 from .models import Document
 
 from .service import upload_document
 from app.documents.schemas import DocumentProcessingResponse
 from app.documents.schemas import ExtractedTextResponse
 from app.documents.service import process_document_text
+from app.documents.schemas import (
+    DocumentChunkRequest,
+    DocumentChunkResponse,
+    DocumentChunkSummary,
+)
+from app.documents.service import create_document_chunks
 
 router = APIRouter(
     prefix="/documents",
     tags=["Documents"],
 )
 
-
 @router.post(
     "/upload",
     response_model=DocumentUploadResponse,
     status_code=status.HTTP_201_CREATED,
+    tags=["Document Upload"],
     summary="Upload a document",
     description=(
         "Uploads a PDF or TXT document, stores it securely and "
@@ -50,6 +57,7 @@ async def upload_document_endpoint(
 @router.post(
     "/{document_id}/process",
     response_model=DocumentProcessingResponse,
+    tags=["Document Processing"],
     summary="Extract text from an uploaded document",
 )
 def process_document_endpoint(
@@ -78,6 +86,7 @@ def process_document_endpoint(
 @router.get(
     "/{document_id}/text",
     response_model=ExtractedTextResponse,
+    tags=["Document Query"],
     summary="Get extracted document text",
 )
 def get_extracted_text(
@@ -106,3 +115,97 @@ def get_extracted_text(
         processing_status=document.processing_status,
         extracted_text=document.extracted_text,
     )
+
+@router.post(
+    "/{document_id}/chunks",
+    response_model=DocumentChunkResponse,
+    tags=["Document Processing"],
+    summary="Split extracted document text into chunks",
+)
+def chunk_document_endpoint(
+    document_id: int,
+    request: DocumentChunkRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DocumentChunkResponse:
+    chunks = create_document_chunks(
+        document_id=document_id,
+        current_user_id=current_user.id,
+        db=db,
+        chunk_size=request.chunk_size,
+        chunk_overlap=request.chunk_overlap,
+    )
+
+    return DocumentChunkResponse(
+        document_id=document_id,
+        processing_status="chunked",
+        total_chunks=len(chunks),
+        chunk_size=request.chunk_size,
+        chunk_overlap=request.chunk_overlap,
+        chunks=[
+            DocumentChunkSummary(
+                chunk_id=chunk.id,
+                chunk_order=chunk.chunk_order,
+                character_count=chunk.character_count,
+                word_count=chunk.word_count,
+                preview=chunk.chunk_text[:150],
+            )
+            for chunk in chunks
+        ],
+    )
+
+@router.get(
+    "/{document_id}/chunks",
+    tags=["Document Query"],
+    summary="Get document chunks",
+    description="Returns all stored chunks for a document in chunk order.",
+)
+def get_document_chunks(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id,
+            Document.uploaded_by == current_user.id,
+        )
+        .first()
+    )
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+
+    chunks = (
+        db.query(DocumentChunk)
+        .filter(DocumentChunk.document_id == document_id)
+        .order_by(DocumentChunk.chunk_order.asc())
+        .all()
+    )
+
+    if not chunks:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No chunks found for this document.",
+        )
+
+    return {
+        "document_id": document.id,
+        "original_filename": document.original_filename,
+        "processing_status": document.processing_status,
+        "total_chunks": len(chunks),
+        "chunks": [
+            {
+                "chunk_id": chunk.id,
+                "chunk_order": chunk.chunk_order,
+                "character_count": chunk.character_count,
+                "word_count": chunk.word_count,
+                "chunk_text": chunk.chunk_text,
+            }
+            for chunk in chunks
+        ],
+    }
