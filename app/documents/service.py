@@ -23,6 +23,19 @@ from app.ai.embedding_service import (
 )
 from app.documents.chunk_models import DocumentChunk
 from app.documents.models import Document
+import json
+from datetime import datetime, timezone
+
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.documents.chunk_models import DocumentChunk
+from app.documents.models import Document
+from app.vector_store.chroma_store import (
+    ChromaVectorStore,
+    VectorStoreError,
+)
+from app.vector_store.models import VectorRecord
 
 from .config import (
     ALLOWED_CONTENT_TYPES,
@@ -472,4 +485,205 @@ def generate_document_embeddings(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Document embedding process failed.",
+        ) from exc
+
+def store_document_vectors(
+    *,
+    document_id: int,
+    current_user_id: int,
+    db: Session,
+) -> list[DocumentChunk]:
+    """
+    Store all completed chunk embeddings in ChromaDB.
+    """
+
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id,
+            Document.uploaded_by == current_user_id,
+        )
+        .first()
+    )
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+
+    chunks = (
+        db.query(DocumentChunk)
+        .filter(
+            DocumentChunk.document_id == document_id
+        )
+        .order_by(DocumentChunk.chunk_order.asc())
+        .all()
+    )
+
+    if not chunks:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Document chunks have not been created."
+            ),
+        )
+
+    incomplete_chunks = [
+        chunk
+        for chunk in chunks
+        if (
+            chunk.embedding_status != "completed"
+            or not chunk.embedding_json
+        )
+    ]
+
+    if incomplete_chunks:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"{len(incomplete_chunks)} chunks do not have "
+                "completed embeddings. Generate embeddings first."
+            ),
+        )
+
+    vector_records: list[VectorRecord] = []
+
+    try:
+        for chunk in chunks:
+            vector_id = (
+                f"document-{document.id}-chunk-{chunk.id}"
+            )
+
+            try:
+                embedding = json.loads(
+                    chunk.embedding_json
+                )
+            except json.JSONDecodeError as exc:
+                raise HTTPException(
+                    status_code=(
+                        status.HTTP_422_UNPROCESSABLE_CONTENT
+                    ),
+                    detail=(
+                        f"Chunk {chunk.id} contains an invalid "
+                        "embedding."
+                    ),
+                ) from exc
+
+            if not isinstance(embedding, list):
+                raise HTTPException(
+                    status_code=(
+                        status.HTTP_422_UNPROCESSABLE_CONTENT
+                    ),
+                    detail=(
+                        f"Chunk {chunk.id} embedding is not a list."
+                    ),
+                )
+
+            if (
+                chunk.embedding_dimension is not None
+                and len(embedding)
+                != chunk.embedding_dimension
+            ):
+                raise HTTPException(
+                    status_code=(
+                        status.HTTP_422_UNPROCESSABLE_CONTENT
+                    ),
+                    detail=(
+                        f"Chunk {chunk.id} embedding dimension "
+                        "does not match its metadata."
+                    ),
+                )
+
+            chunk.vector_id = vector_id
+            chunk.vector_store_status = "indexing"
+            chunk.vector_store_error = None
+
+            vector_records.append(
+                VectorRecord(
+                    vector_id=vector_id,
+                    embedding=[
+                        float(value)
+                        for value in embedding
+                    ],
+                    document_text=chunk.chunk_text,
+                    metadata={
+                        "document_id": document.id,
+                        "chunk_id": chunk.id,
+                        "chunk_order": chunk.chunk_order,
+                        "user_id": current_user_id,
+                        "original_filename": (
+                            document.original_filename
+                        ),
+                        "embedding_model": (
+                            chunk.embedding_model or "unknown"
+                        ),
+                        "embedding_dimension": len(embedding),
+                    },
+                )
+            )
+
+        db.commit()
+
+        vector_store = ChromaVectorStore()
+
+        result = vector_store.upsert_records(
+            vector_records
+        )
+
+        stored_ids = set(result.vector_ids)
+        indexed_at = datetime.now(timezone.utc)
+
+        for chunk in chunks:
+            if chunk.vector_id in stored_ids:
+                chunk.vector_store = "chroma"
+                chunk.vector_store_status = "indexed"
+                chunk.vector_store_error = None
+                chunk.indexed_at = indexed_at
+
+        document.processing_status = "indexed"
+
+        db.commit()
+
+        for chunk in chunks:
+            db.refresh(chunk)
+
+        return chunks
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except VectorStoreError as exc:
+        db.rollback()
+
+        failed_chunks = (
+            db.query(DocumentChunk)
+            .filter(
+                DocumentChunk.document_id
+                == document_id
+            )
+            .all()
+        )
+
+        for chunk in failed_chunks:
+            if chunk.vector_store_status == "indexing":
+                chunk.vector_store_status = "failed"
+                chunk.vector_store_error = str(exc)
+
+        db.commit()
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    except Exception as exc:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=(
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            ),
+            detail="Document vector storage failed.",
         ) from exc

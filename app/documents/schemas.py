@@ -72,3 +72,21 @@ class DocumentEmbeddingResponse(BaseModel):
     embedded_chunks: int
     failed_chunks: int
     embeddings: list[ChunkEmbeddingSummary]
+
+class ChunkVectorStoreSummary(BaseModel):
+    chunk_id: int
+    chunk_order: int
+    vector_id: str | None
+    vector_store: str | None
+    vector_store_status: str
+    indexed_at: datetime | None
+
+
+class DocumentVectorStoreResponse(BaseModel):
+    document_id: int
+    processing_status: str
+    collection_name: str
+    total_chunks: int
+    indexed_chunks: int
+    failed_chunks: int
+    chunks: list[ChunkVectorStoreSummary]

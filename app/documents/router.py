@@ -25,7 +25,14 @@ from app.documents.schemas import (
     DocumentEmbeddingResponse,
 )
 from app.documents.service import generate_document_embeddings
-
+from app.documents.schemas import (
+    ChunkVectorStoreSummary,
+    DocumentVectorStoreResponse,
+)
+from app.documents.service import store_document_vectors
+from app.vector_store.config import (
+    CHROMA_COLLECTION_NAME,
+)
 
 router = APIRouter(
     prefix="/documents",
@@ -330,6 +337,61 @@ def get_document_embeddings(
                 embedding_status=chunk.embedding_status,
                 embedding_model=chunk.embedding_model,
                 embedding_dimension=chunk.embedding_dimension,
+            )
+            for chunk in chunks
+        ],
+    )
+
+@router.post(
+    "/{document_id}/vectors",
+    response_model=DocumentVectorStoreResponse,
+    tags=["Document Processing"],
+    summary="Store document vectors",
+    description=(
+        "Stores completed document chunk embeddings "
+        "in ChromaDB."
+    ),
+)
+def store_document_vectors_endpoint(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DocumentVectorStoreResponse:
+    chunks = store_document_vectors(
+        document_id=document_id,
+        current_user_id=current_user.id,
+        db=db,
+    )
+
+    indexed_chunks = sum(
+        1
+        for chunk in chunks
+        if chunk.vector_store_status == "indexed"
+    )
+
+    failed_chunks = sum(
+        1
+        for chunk in chunks
+        if chunk.vector_store_status == "failed"
+    )
+
+    return DocumentVectorStoreResponse(
+        document_id=document_id,
+        processing_status="indexed",
+        collection_name=CHROMA_COLLECTION_NAME,
+        total_chunks=len(chunks),
+        indexed_chunks=indexed_chunks,
+        failed_chunks=failed_chunks,
+        chunks=[
+            ChunkVectorStoreSummary(
+                chunk_id=chunk.id,
+                chunk_order=chunk.chunk_order,
+                vector_id=chunk.vector_id,
+                vector_store=chunk.vector_store,
+                vector_store_status=(
+                    chunk.vector_store_status
+                ),
+                indexed_at=chunk.indexed_at,
             )
             for chunk in chunks
         ],

@@ -82,3 +82,31 @@ class DocumentChunk(Base):
         "Document",
         back_populates="chunks",
     )
+
+    vector_id = Column(
+        String,
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
+    vector_store = Column(
+        String,
+        nullable=True,
+    )
+
+    vector_store_status = Column(
+        String,
+        nullable=False,
+        default="pending",
+    )
+
+    vector_store_error = Column(
+        Text,
+        nullable=True,
+    )
+
+    indexed_at = Column(
+        DateTime,
+        nullable=True,
+    )
