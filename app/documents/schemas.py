@@ -53,3 +53,22 @@ class DocumentChunkResponse(BaseModel):
     chunk_size: int
     chunk_overlap: int
     chunks: list[DocumentChunkSummary]
+
+from pydantic import BaseModel
+
+
+class ChunkEmbeddingSummary(BaseModel):
+    chunk_id: int
+    chunk_order: int
+    embedding_status: str
+    embedding_model: str | None
+    embedding_dimension: int | None
+
+
+class DocumentEmbeddingResponse(BaseModel):
+    document_id: int
+    processing_status: str
+    total_chunks: int
+    embedded_chunks: int
+    failed_chunks: int
+    embeddings: list[ChunkEmbeddingSummary]

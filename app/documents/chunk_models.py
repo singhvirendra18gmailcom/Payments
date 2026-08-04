@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Text , String
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -41,7 +41,37 @@ class DocumentChunk(Base):
         Integer,
         nullable=False,
     )
+    # Temporary storage until ChromaDB is added in Issue 6.
+    embedding_json = Column(
+        Text,
+        nullable=True,
+    )
 
+    embedding_model = Column(
+        String,
+        nullable=True,
+    )
+
+    embedding_dimension = Column(
+        Integer,
+        nullable=True,
+    )
+
+    embedding_status = Column(
+        String,
+        nullable=False,
+        default="pending",
+    )
+
+    embedding_error = Column(
+        Text,
+        nullable=True,
+    )
+
+    embedded_at = Column(
+        DateTime,
+        nullable=True,
+    )
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),

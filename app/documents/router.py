@@ -20,6 +20,12 @@ from app.documents.schemas import (
     DocumentChunkSummary,
 )
 from app.documents.service import create_document_chunks
+from app.documents.schemas import (
+    ChunkEmbeddingSummary,
+    DocumentEmbeddingResponse,
+)
+from app.documents.service import generate_document_embeddings
+
 
 router = APIRouter(
     prefix="/documents",
@@ -209,3 +215,122 @@ def get_document_chunks(
             for chunk in chunks
         ],
     }
+
+@router.post(
+    "/{document_id}/embeddings",
+    response_model=DocumentEmbeddingResponse,
+    tags=["Document Processing"],
+    summary="Generate document chunk embeddings",
+    description=(
+        "Generates a Gemini embedding for each stored document chunk."
+    ),
+)
+def generate_embeddings_endpoint(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DocumentEmbeddingResponse:
+    chunks = generate_document_embeddings(
+        document_id=document_id,
+        current_user_id=current_user.id,
+        db=db,
+    )
+
+    embedded_chunks = sum(
+        1
+        for chunk in chunks
+        if chunk.embedding_status == "completed"
+    )
+
+    failed_chunks = sum(
+        1
+        for chunk in chunks
+        if chunk.embedding_status == "failed"
+    )
+
+    return DocumentEmbeddingResponse(
+        document_id=document_id,
+        processing_status="embedded",
+        total_chunks=len(chunks),
+        embedded_chunks=embedded_chunks,
+        failed_chunks=failed_chunks,
+        embeddings=[
+            ChunkEmbeddingSummary(
+                chunk_id=chunk.id,
+                chunk_order=chunk.chunk_order,
+                embedding_status=chunk.embedding_status,
+                embedding_model=chunk.embedding_model,
+                embedding_dimension=chunk.embedding_dimension,
+            )
+            for chunk in chunks
+        ],
+    )
+
+@router.get(
+    "/{document_id}/embeddings",
+    response_model=DocumentEmbeddingResponse,
+    tags=["Document Query"],
+    summary="Get document embedding status",
+)
+def get_document_embeddings(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DocumentEmbeddingResponse:
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id,
+            Document.uploaded_by == current_user.id,
+        )
+        .first()
+    )
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+
+    chunks = (
+        db.query(DocumentChunk)
+        .filter(DocumentChunk.document_id == document_id)
+        .order_by(DocumentChunk.chunk_order.asc())
+        .all()
+    )
+
+    if not chunks:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No document chunks found.",
+        )
+
+    embedded_chunks = sum(
+        1
+        for chunk in chunks
+        if chunk.embedding_status == "completed"
+    )
+
+    failed_chunks = sum(
+        1
+        for chunk in chunks
+        if chunk.embedding_status == "failed"
+    )
+
+    return DocumentEmbeddingResponse(
+        document_id=document.id,
+        processing_status=document.processing_status,
+        total_chunks=len(chunks),
+        embedded_chunks=embedded_chunks,
+        failed_chunks=failed_chunks,
+        embeddings=[
+            ChunkEmbeddingSummary(
+                chunk_id=chunk.id,
+                chunk_order=chunk.chunk_order,
+                embedding_status=chunk.embedding_status,
+                embedding_model=chunk.embedding_model,
+                embedding_dimension=chunk.embedding_dimension,
+            )
+            for chunk in chunks
+        ],
+    )

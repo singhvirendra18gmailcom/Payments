@@ -11,6 +11,18 @@ from sqlalchemy.orm import Session
 from app.documents.chunk_models import DocumentChunk
 from app.documents.models import Document
 from app.documents.text_chunker import split_text_into_chunks
+import json
+from datetime import datetime, timezone
+
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.ai.embedding_service import (
+    EmbeddingGenerationError,
+    GeminiEmbeddingService,
+)
+from app.documents.chunk_models import DocumentChunk
+from app.documents.models import Document
 
 from .config import (
     ALLOWED_CONTENT_TYPES,
@@ -361,4 +373,103 @@ def create_document_chunks(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Document chunking failed.",
+        ) from exc
+
+def generate_document_embeddings(
+    *,
+    document_id: int,
+    current_user_id: int,
+    db: Session,
+) -> list[DocumentChunk]:
+    """
+    Generate and persist embeddings for every chunk of a document.
+    """
+
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id,
+            Document.uploaded_by == current_user_id,
+        )
+        .first()
+    )
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+
+    chunks = (
+        db.query(DocumentChunk)
+        .filter(DocumentChunk.document_id == document_id)
+        .order_by(DocumentChunk.chunk_order.asc())
+        .all()
+    )
+
+    if not chunks:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Document chunks have not been created. "
+                "Run the chunking endpoint first."
+            ),
+        )
+
+    embedding_service = GeminiEmbeddingService()
+    completed_chunks: list[DocumentChunk] = []
+
+    try:
+        for chunk in chunks:
+            chunk.embedding_status = "processing"
+            chunk.embedding_error = None
+            db.commit()
+
+            try:
+                vector = (
+                    embedding_service.generate_document_embedding(
+                        text=chunk.chunk_text,
+                        title=document.original_filename,
+                    )
+                )
+
+                chunk.embedding_json = json.dumps(vector)
+                chunk.embedding_model = embedding_service.model
+                chunk.embedding_dimension = len(vector)
+                chunk.embedding_status = "completed"
+                chunk.embedding_error = None
+                chunk.embedded_at = datetime.now(timezone.utc)
+
+                db.commit()
+                db.refresh(chunk)
+
+                completed_chunks.append(chunk)
+
+            except EmbeddingGenerationError as exc:
+                chunk.embedding_status = "failed"
+                chunk.embedding_error = str(exc)
+                db.commit()
+
+                raise
+
+        document.processing_status = "embedded"
+        db.commit()
+        db.refresh(document)
+
+        return completed_chunks
+
+    except EmbeddingGenerationError as exc:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+
+    except Exception as exc:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Document embedding process failed.",
         ) from exc
