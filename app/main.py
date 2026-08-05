@@ -42,7 +42,13 @@ from app.documents.models import Document
 from app.models import  User
 from app.documents.models import Document
 from app.documents.chunk_models import DocumentChunk
+from fastapi import Depends
+from sqlalchemy.orm import Session
 
+from app.auth import get_db
+from app.documents.models import Document
+from app.models import User
+from app.auth import get_current_user
 Base.metadata.create_all(bind=engine)
 
 tags_metadata = [
@@ -341,19 +347,40 @@ def upload_document(
         "status": "uploaded"
     }
 
-@app.get("/documents",tags=["Documents"],summary="List uploaded documents")
-def list_documents(current_user: User = Depends(get_current_user)):
-    logger.info("list all documents endpoint called")
-    files = os.listdir(UPLOAD_DIR)
+@app.get(
+    "/documents",
+    tags=["Document Query"],
+    summary="List uploaded documents",
+)
+def list_documents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    logger.info(
+        "List documents endpoint called for user_id=%s",
+        current_user.id,
+    )
+
+    documents = (
+        db.query(Document)
+        .filter(Document.uploaded_by == current_user.id)
+        .order_by(Document.uploaded_at.desc())
+        .all()
+    )
 
     return [
         {
-            "filename": file,
-            "type": os.path.splitext(file)[1].replace(".", "")
+            "document_id": document.id,
+            "original_filename": document.original_filename,
+            "stored_filename": document.stored_filename,
+            "content_type": document.content_type,
+            "file_extension": document.file_extension,
+            "file_size": document.file_size,
+            "processing_status": document.processing_status,
+            "uploaded_at": document.uploaded_at,
         }
-        for file in files
+        for document in documents
     ]
-
 
 
 @app.post("/chat/ask-ai",tags=["Chat"],summary="Ask General AI Assistant")

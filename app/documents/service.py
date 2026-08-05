@@ -627,6 +627,12 @@ def store_document_vectors(
 
         vector_store = ChromaVectorStore()
 
+        # Delete old vectors before indexing the current document again.
+        vector_store.delete_document_vectors(
+            document_id=document.id,
+            user_id=current_user_id,
+        )
+
         result = vector_store.upsert_records(
             vector_records
         )
