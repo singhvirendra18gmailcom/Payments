@@ -1,4 +1,7 @@
-# AI Payment Assistant
+<p align="center">
+  <img src="docs/images/banner.png" width="100%">
+</p>
+<h1 align="center">AI Payment Assistant</h1>
 
 <p align="center">
   <strong>AI-powered assistant for understanding SWIFT MT messages, ISO 20022 messages, payment workflows, and payment-domain documentation.</strong>
@@ -52,18 +55,12 @@ This project combines backend engineering, Generative AI, and international-paym
 - Ask general AI questions
 - Integrate with Google Gemini
 
-### Document Intelligence & RAG
+### Document Management
 
-- Upload PDF, TXT, and DOCX payment-domain documents
-- Extract and retrieve document text
-- Split extracted text into configurable chunks
-- Generate Gemini embeddings for document chunks
-- Index vectors in persistent ChromaDB
-- Perform semantic search over user-owned documents
-- Ask document-grounded questions using Retrieval-Augmented Generation (RAG)
-- Return source chunks with generated answers
-- Delete the physical file, SQLite metadata/chunks, and Chroma vectors together
-- Protect all document APIs using JWT authentication and user ownership
+- Upload payment-domain documents with authenticated metadata tracking
+- Store uploaded files on disk
+- Persist document metadata in SQLite
+- Keep legacy local upload endpoints available
 
 ### Engineering and Operations
 
@@ -85,9 +82,6 @@ This project combines backend engineering, Generative AI, and international-paym
 | AI provider | Google Gemini |
 | Database ORM | SQLAlchemy |
 | Database | SQLite |
-| Database migrations | Alembic |
-| Vector database | ChromaDB |
-| Embeddings | Google Gemini Embeddings |
 | Authentication | JWT |
 | Validation | Pydantic |
 | Testing | Pytest |
@@ -109,15 +103,10 @@ flowchart LR
     F --> H[Health Module]
 
     A --> DB[(SQLite Database)]
-    D --> FS[(Document Storage)]
+    D --> FS[(Local Document Storage)]
     D --> DB
-    D --> E[Gemini Embeddings]
-    D --> V[(ChromaDB Vector Store)]
-    D --> R[RAG / Semantic Search]
-    R --> V
-    R --> G[Google Gemini API]
 
-    P --> G
+    P --> G[Google Gemini API]
     C --> G
 
     F --> L[Structured Logging]
@@ -127,16 +116,14 @@ flowchart LR
 
 ### Request Flow
 
-1. A user registers or logs in and receives a JWT access token.
-2. The user uploads a PDF, TXT, or DOCX payment document.
-3. The document is stored physically and its metadata is stored in SQLite against the authenticated user.
-4. Text is extracted from the uploaded document.
-5. Extracted text is split into ordered chunks.
-6. Gemini generates numerical embeddings for the chunks.
-7. Chunk vectors, text, and metadata are indexed in ChromaDB.
-8. For semantic search, the question is embedded and compared with indexed vectors to retrieve the most relevant chunks.
-9. For `/documents/{document_id}/ask`, the retrieved chunks are supplied to Gemini as grounded context and the API returns an answer with source chunks.
-10. Important events and errors are recorded through application logging.
+1. A user registers or logs in.
+2. The application generates a JWT access token.
+3. The user authorizes protected API requests.
+4. FastAPI validates the request using Pydantic models.
+5. The appropriate service processes the request.
+6. AI-enabled endpoints call Google Gemini when configured.
+7. The API returns a structured JSON response.
+8. Important events and errors are recorded through application logging.
 
 ---
 
@@ -187,31 +174,29 @@ http://127.0.0.1:8000/redoc
 ```text
 ai-payment-assistant/
 ├── app/
-│   ├── routers/
-│   │   ├── auth.py
-│   │   ├── chat.py
-│   │   ├── documents.py
-│   │   ├── health.py
-│   │   └── payments.py
+│   ├── documents/
+│   │   ├── config.py
+│   │   ├── models.py
+│   │   ├── router.py
+│   │   └── service.py
 │   ├── services/
-│   ├── models/
-│   ├── schemas/
+│   ├── auth.py
 │   ├── config.py
 │   ├── database.py
-│   └── main.py
-├── tests/
+│   ├── logger.py
+│   ├── main.py
+│   ├── models.py
+│   ├── payment_service.py
+│   └── schemas.py
 ├── docs/
-│   └── images/
+├── logs/
+├── tests/
+├── uploads/
 ├── .github/
-│   └── workflows/
 ├── .env.example
-├── .gitignore
 ├── requirements.txt
-├── README.md
-└── LICENSE
+└── README.md
 ```
-
-Adjust this structure so it matches the actual folders and filenames in your repository.
 
 ---
 
@@ -297,23 +282,33 @@ http://127.0.0.1:8000/docs
 
 ## Testing
 
-Run all tests:
+Run all tests from the project virtual environment:
+
+### Windows PowerShell
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
+
+### macOS or Linux
 
 ```bash
-pytest
+python -m pytest
 ```
 
 Run tests with detailed output:
 
-```bash
-pytest -v
+```powershell
+.\.venv\Scripts\python.exe -m pytest -v
 ```
 
 Run tests with coverage when `pytest-cov` is installed:
 
-```bash
-pytest --cov=app --cov-report=term-missing
+```powershell
+.\.venv\Scripts\python.exe -m pytest --cov=app --cov-report=term-missing
 ```
+
+The test suite uses `AI_PROVIDER=local` from `tests/conftest.py`, so tests do not call the external Gemini API.
 
 ---
 
@@ -324,27 +319,15 @@ pytest --cov=app --cov-report=term-missing
 | GET | `/health` | Application health check | No |
 | GET | `/ai/health` | AI-service health check | No |
 | POST | `/auth/register` | Register a new user | No |
-| POST | `/auth/login` | Authenticate user | No |
+| POST | `/auth/login` | Authenticate user with OAuth2 password form data | No |
 | GET | `/auth/me` | Get current user profile | Yes |
 | POST | `/payments/explain` | Explain payment message | Yes |
-| POST | `/payments/explain-ai` | Explain payment using AI | No/Yes* |
+| POST | `/payments/explain-ai` | Explain payment using AI | No |
 | POST | `/chat/ask` | Ask Payment Assistant | Yes |
-| POST | `/chat/ask-ai` | Ask General AI Assistant | No/Yes* |
-| POST | `/documents/upload` | Upload PDF/TXT/DOCX document | Yes |
-| GET | `/documents` | List current user's documents | Yes |
-| POST | `/documents/{document_id}/process` | Extract document text | Yes |
-| GET | `/documents/{document_id}/text` | Get extracted text | Yes |
-| POST | `/documents/{document_id}/chunks` | Split document text into chunks | Yes |
-| GET | `/documents/{document_id}/chunks` | Get document chunks | Yes |
-| POST | `/documents/{document_id}/embeddings` | Generate chunk embeddings | Yes |
-| GET | `/documents/{document_id}/embeddings` | Get embedding status | Yes |
-| POST | `/documents/{document_id}/vectors` | Index vectors in ChromaDB | Yes |
-| GET | `/documents/{document_id}/vectors` | Get vector-storage status | Yes |
-| POST | `/documents/{document_id}/search` | Semantic search over document chunks | Yes |
-| POST | `/documents/{document_id}/ask` | Ask a grounded RAG question | Yes |
-| DELETE | `/documents/{document_id}` | Delete file, metadata, chunks and vectors | Yes |
-
-\* Update the authentication status to match your current implementation.
+| POST | `/chat/ask-ai` | Ask General AI Assistant | No |
+| POST | `/documents/upload` | Upload PDF or TXT document, persist metadata, and save the file under `uploads/documents` | Yes |
+| POST | `/documents/upload/v2` | Upload PDF, TXT, or DOCX document to the legacy local storage path | Yes |
+| GET | `/documents` | List uploaded documents from the legacy local upload directory | Yes |
 
 ---
 
@@ -366,23 +349,48 @@ curl -X POST "http://127.0.0.1:8000/auth/register" \
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "StrongPassword123"
-  }'
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=user@example.com&password=StrongPassword123"
 ```
+
+The login endpoint follows FastAPI's OAuth2 password flow. Use `username` for the registered email address.
 
 ### Explain a payment message
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/payments/explain-ai" \
+TOKEN="paste_access_token_here"
+
+curl -X POST "http://127.0.0.1:8000/payments/explain" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "message_type": "pacs.008",
     "content": "Add a safe sample payment message here"
   }'
 ```
+
+Use `/payments/explain-ai` for the AI-powered public endpoint.
+
+### Upload a document
+
+The primary upload endpoint is `/documents/upload`. It accepts authenticated multipart uploads, allows only PDF and TXT files, enforces a 10 MB limit, stores the file under `uploads/documents`, and creates a document record in the database.
+
+```bash
+curl -X POST "http://127.0.0.1:8000/documents/upload" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@sample-document.pdf;type=application/pdf"
+```
+
+Expected response fields:
+
+- `document_id`
+- `original_filename`
+- `content_type`
+- `file_size`
+- `processing_status`
+- `uploaded_at`
+
+The older `/documents/upload/v2` endpoint still exists for direct local file storage and also accepts `.docx` files.
 
 ---
 
@@ -395,6 +403,7 @@ curl -X POST "http://127.0.0.1:8000/payments/explain-ai" \
 - Screenshots and examples must not contain real customer or payment data.
 - API responses should avoid exposing internal exception details.
 - Uploaded documents should be validated for file type and size.
+- `/documents/upload` accepts only PDF and TXT files and enforces a 10 MB size limit.
 
 ---
 
@@ -423,66 +432,31 @@ Workflow file location:
 
 Version 3 includes:
 
-- Everything delivered in Version 2
-- PDF, TXT, and DOCX document processing
-- Extracted-text persistence and retrieval
-- Configurable text chunking
-- Google Gemini embedding generation
-- ChromaDB persistent vector storage
-- User-scoped semantic search
-- Retrieval-Augmented Generation (RAG) through `/documents/{document_id}/ask`
-- Source chunk traceability in RAG responses
-- Alembic database migrations
-- Full document deletion across physical storage, SQLite, chunks, and Chroma vectors
-- Automated tests for upload, extraction, chunking, embeddings, vector indexing, semantic search, and RAG
-
-### V3 Document Ingestion Flow
-
-```text
-Upload Document
-      ↓
-Extract Text
-      ↓
-Chunk Text
-      ↓
-Generate Embeddings
-      ↓
-Store / Index Vectors in ChromaDB
-```
-
-### V3 Retrieval & RAG Flow
-
-```text
-User Question
-      ↓
-Generate Query Embedding
-      ↓
-Semantic Search in ChromaDB
-      ↓
-Retrieve Top-K Relevant Chunks
-      ↓
-Build Grounded Context
-      ↓
-Gemini LLM
-      ↓
-Answer + Source Chunks
-```
+- JWT authentication
+- Payment-message explanation
+- AI-powered payment explanation
+- AI chat endpoints
+- Document upload with database-backed metadata
+- Legacy local document upload and listing
+- Structured logging
+- Automated testing
+- GitHub Actions CI
+- Improved Swagger documentation
 
 ---
 
 ## Roadmap
 
-Planned Version 4 improvements:
+Planned Version 3 improvements:
 
-- Multi-document RAG
-- Conversation history and follow-up document questions
-- Hybrid keyword + vector retrieval
-- Reranking and retrieval-quality evaluation
-- Page-level/source citations
-- Background document processing
+- Retrieval-Augmented Generation
+- Semantic search across uploaded documents
+- Payment-message validation
+- Conversation history
 - Role-based access control
-- PostgreSQL / pgvector evaluation
-- Docker and cloud deployment
+- PostgreSQL support
+- Docker deployment
+- Cloud deployment
 - Improved monitoring and analytics
 - Web-based frontend
 
@@ -497,11 +471,6 @@ This project demonstrates practical experience in:
 - JWT-based authentication
 - SQLAlchemy database integration
 - Generative AI integration
-- Embedding generation and vector databases
-- Semantic search and Retrieval-Augmented Generation (RAG)
-- ChromaDB integration
-- Alembic database migrations
-- User-scoped document retrieval
 - Payment-domain application design
 - Automated testing
 - Continuous integration
