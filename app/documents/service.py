@@ -882,3 +882,99 @@ def ask_document_question(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
+
+
+
+def delete_document(
+    *,
+    document_id: int,
+    current_user_id: int,
+    db: Session,
+) -> None:
+    """
+    Delete a user-owned document completely.
+
+    Removes:
+    - ChromaDB vectors
+    - physical file
+    - document chunks
+    - document metadata
+    """
+
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id,
+            Document.uploaded_by == current_user_id,
+        )
+        .first()
+    )
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+
+    file_path = Path(document.file_path)
+
+    # -------------------------------------------------
+    # 1. Delete vectors from ChromaDB
+    # -------------------------------------------------
+
+    try:
+        vector_store = ChromaVectorStore()
+
+        vector_store.delete_document_vectors(
+            document_id=document.id,
+            user_id=current_user_id,
+        )
+
+    except VectorStoreError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Could not delete document vectors from ChromaDB."
+            ),
+        ) from exc
+
+    # -------------------------------------------------
+    # 2. Delete physical file
+    # -------------------------------------------------
+
+    try:
+        if file_path.exists():
+            file_path.unlink()
+
+    except OSError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not delete the physical document file.",
+        ) from exc
+
+    # -------------------------------------------------
+    # 3. Delete chunks + document metadata
+    # -------------------------------------------------
+
+    try:
+        (
+            db.query(DocumentChunk)
+            .filter(
+                DocumentChunk.document_id == document.id
+            )
+            .delete(
+                synchronize_session=False
+            )
+        )
+
+        db.delete(document)
+
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not delete document metadata.",
+        ) from exc

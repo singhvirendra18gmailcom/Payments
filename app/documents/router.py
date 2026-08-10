@@ -54,16 +54,24 @@ from app.documents.service import (
     ask_document_question,
 )
 
+from fastapi import Depends, status
+from sqlalchemy.orm import Session
+
+
+from app.models import User
+
+
+from app.documents.service import delete_document
+
 router = APIRouter(
-    prefix="/documents",
-    tags=["Documents"],
+    prefix="/documents"
 )
 
 @router.post(
     "/upload",
     response_model=DocumentUploadResponse,
     status_code=status.HTTP_201_CREATED,
-    tags=["Document"],
+    tags=["Documents"],
     summary="Upload a document",
     description=(
         "Uploads a PDF or TXT document, stores it securely and "
@@ -881,3 +889,25 @@ def ask_document_endpoint(
         total_sources=len(sources),
         sources=sources,
     )
+@router.delete(
+    "/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["Documents"],
+    summary="Delete a document",
+    description=(
+        "Deletes the document file, SQLite metadata, "
+        "document chunks and ChromaDB vectors."
+    ),
+)
+def delete_document_endpoint(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    delete_document(
+        document_id=document_id,
+        current_user_id=current_user.id,
+        db=db,
+    )
+
+    return None
