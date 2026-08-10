@@ -11,6 +11,8 @@ from app.vector_store.config import (
 )
 from app.vector_store.models import (
     VectorRecord,
+    VectorSearchMatch,
+    VectorSearchResult,
     VectorStoreResult,
 )
 
@@ -212,3 +214,96 @@ class ChromaVectorStore:
                 sanitized[key] = str(value)
 
         return sanitized
+
+    def search_similar_chunks(
+        self,
+        *,
+        query_embedding: list[float],
+        document_id: int,
+        user_id: int,
+        top_k: int = 5,
+    ) -> VectorSearchResult:
+        """
+        Search for chunks closest to the supplied query embedding.
+        """
+
+        if not query_embedding:
+            raise VectorStoreError(
+                "Query embedding cannot be empty."
+            )
+
+        if top_k <= 0:
+            raise VectorStoreError(
+                "top_k must be greater than zero."
+            )
+
+        try:
+            result = self.collection.query(
+                query_embeddings=[query_embedding],
+                n_results=top_k,
+                where={
+                    "$and": [
+                        {"document_id": document_id},
+                        {"user_id": user_id},
+                    ]
+                },
+                include=[
+                    "documents",
+                    "metadatas",
+                    "distances",
+                ],
+            )
+
+            ids = (
+                result.get("ids", [[]])[0]
+                if result.get("ids")
+                else []
+            )
+
+            documents = (
+                result.get("documents", [[]])[0]
+                if result.get("documents")
+                else []
+            )
+
+            metadatas = (
+                result.get("metadatas", [[]])[0]
+                if result.get("metadatas")
+                else []
+            )
+
+            distances = (
+                result.get("distances", [[]])[0]
+                if result.get("distances")
+                else []
+            )
+
+            matches: list[VectorSearchMatch] = []
+
+            for vector_id, document_text, metadata, distance in zip(
+                ids,
+                documents,
+                metadatas,
+                distances,
+            ):
+                if document_text is None:
+                    continue
+
+                matches.append(
+                    VectorSearchMatch(
+                        vector_id=vector_id,
+                        document_text=document_text,
+                        metadata=metadata or {},
+                        distance=float(distance),
+                    )
+                )
+
+            return VectorSearchResult(
+                collection_name=self.collection.name,
+                matches=matches,
+            )
+
+        except Exception as exc:
+            raise VectorStoreError(
+                "Semantic search failed in ChromaDB."
+            ) from exc

@@ -34,6 +34,16 @@ from app.vector_store.config import (
     CHROMA_COLLECTION_NAME,
 )
 
+from app.documents.schemas import (
+    DocumentSearchMatch,
+    DocumentSearchRequest,
+    DocumentSearchResponse,
+)
+from app.documents.service import (
+    distance_to_relevance,
+    search_document_chunks,
+)
+
 router = APIRouter(
     prefix="/documents",
     tags=["Documents"],
@@ -752,4 +762,52 @@ def get_document_vectors_endpoint(
             )
             for chunk in chunks
         ],
+    )
+
+@router.post(
+    "/{document_id}/search",
+    response_model=DocumentSearchResponse,
+    tags=["Document Query"],
+    summary="Search relevant document chunks",
+    description=(
+        "Generates an embedding for the question and "
+        "returns the most relevant indexed chunks."
+    ),
+)
+def search_document_endpoint(
+    document_id: int,
+    request: DocumentSearchRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DocumentSearchResponse:
+    result = search_document_chunks(
+        document_id=document_id,
+        current_user_id=current_user.id,
+        question=request.question,
+        top_k=request.top_k,
+        db=db,
+    )
+
+    matches = [
+        DocumentSearchMatch(
+            vector_id=match.vector_id,
+            chunk_id=match.metadata.get("chunk_id"),
+            chunk_order=match.metadata.get(
+                "chunk_order"
+            ),
+            text=match.document_text,
+            distance=round(match.distance, 6),
+            relevance_score=distance_to_relevance(
+                match.distance
+            ),
+        )
+        for match in result.matches
+    ]
+
+    return DocumentSearchResponse(
+        document_id=document_id,
+        question=request.question,
+        collection_name=result.collection_name,
+        total_matches=len(matches),
+        matches=matches,
     )

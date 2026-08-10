@@ -96,3 +96,59 @@ class GeminiEmbeddingService:
             raise EmbeddingGenerationError(
                 "Gemini embedding generation failed."
             ) from exc
+
+
+    def generate_query_embedding(
+        self,
+        question: str,
+    ) -> list[float]:
+        """
+        Generate an embedding for a semantic-search question.
+        """
+
+        if not question or not question.strip():
+            raise EmbeddingGenerationError(
+                "Search question cannot be empty."
+            )
+
+        prepared_question = self.prepare_query_text(
+            question.strip()
+        )
+
+        try:
+            response = self.client.models.embed_content(
+                model=self.model,
+                contents=prepared_question,
+                config=types.EmbedContentConfig(
+                    output_dimensionality=self.dimension,
+                ),
+            )
+
+            if not response.embeddings:
+                raise EmbeddingGenerationError(
+                    "Gemini returned no query embedding."
+                )
+
+            vector = response.embeddings[0].values
+
+            if not vector:
+                raise EmbeddingGenerationError(
+                    "Gemini returned an empty query embedding."
+                )
+
+            if len(vector) != self.dimension:
+                raise EmbeddingGenerationError(
+                    "Unexpected query embedding dimension: "
+                    f"expected {self.dimension}, "
+                    f"received {len(vector)}."
+                )
+
+            return [float(value) for value in vector]
+
+        except EmbeddingGenerationError:
+            raise
+
+        except Exception as exc:
+            raise EmbeddingGenerationError(
+                "Query embedding generation failed."
+            ) from exc

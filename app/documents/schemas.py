@@ -90,3 +90,36 @@ class DocumentVectorStoreResponse(BaseModel):
     indexed_chunks: int
     failed_chunks: int
     chunks: list[ChunkVectorStoreSummary]
+
+
+class DocumentSearchRequest(BaseModel):
+    question: str = Field(
+        min_length=3,
+        max_length=1000,
+        examples=[
+            "What is PACS.008 used for?"
+        ],
+    )
+
+    top_k: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+    )
+
+
+class DocumentSearchMatch(BaseModel):
+    vector_id: str
+    chunk_id: int | None
+    chunk_order: int | None
+    text: str
+    distance: float
+    relevance_score: float
+
+
+class DocumentSearchResponse(BaseModel):
+    document_id: int
+    question: str
+    collection_name: str
+    total_matches: int
+    matches: list[DocumentSearchMatch]

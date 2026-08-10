@@ -54,7 +54,14 @@ from app.documents.text_extractor import (
     DocumentExtractionError,
     extract_document_text,
 )
-
+from app.ai.embedding_service import (
+    EmbeddingGenerationError,
+    GeminiEmbeddingService,
+)
+from app.vector_store.chroma_store import (
+    ChromaVectorStore,
+    VectorStoreError,
+)
 
 def validate_basic_file_details(file: UploadFile) -> str:
     """
@@ -693,3 +700,98 @@ def store_document_vectors(
             ),
             detail="Document vector storage failed.",
         ) from exc
+def search_document_chunks(
+    *,
+    document_id: int,
+    current_user_id: int,
+    question: str,
+    top_k: int,
+    db: Session,
+):
+    """
+    Search indexed chunks belonging to one user-owned document.
+    """
+
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id,
+            Document.uploaded_by == current_user_id,
+        )
+        .first()
+    )
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+
+    if document.processing_status != "indexed":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Document has not been indexed. "
+                "Generate embeddings and store vectors first."
+            ),
+        )
+
+    indexed_chunk_count = (
+        db.query(DocumentChunk)
+        .filter(
+            DocumentChunk.document_id == document_id,
+            DocumentChunk.vector_store_status == "indexed",
+        )
+        .count()
+    )
+
+    if indexed_chunk_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No indexed chunks were found.",
+        )
+
+    try:
+        embedding_service = GeminiEmbeddingService()
+
+        question_embedding = (
+            embedding_service.generate_query_embedding(
+                question
+            )
+        )
+
+        vector_store = ChromaVectorStore()
+
+        return vector_store.search_similar_chunks(
+            query_embedding=question_embedding,
+            document_id=document_id,
+            user_id=current_user_id,
+            top_k=min(top_k, indexed_chunk_count),
+        )
+
+    except EmbeddingGenerationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+
+    except VectorStoreError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+def distance_to_relevance(distance: float) -> float:
+    """
+    Convert non-negative distance into a 0–1 display score.
+
+    This is a convenience score, not a probability.
+    """
+
+    if distance < 0:
+        return 0.0
+
+    return round(
+        1.0 / (1.0 + distance),
+        4,
+    )

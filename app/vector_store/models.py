@@ -15,3 +15,16 @@ class VectorStoreResult:
     collection_name: str
     stored_count: int
     vector_ids: list[str]
+
+@dataclass(frozen=True)
+class VectorSearchMatch:
+    vector_id: str
+    document_text: str
+    metadata: dict[str, Any]
+    distance: float
+
+
+@dataclass(frozen=True)
+class VectorSearchResult:
+    collection_name: str
+    matches: list[VectorSearchMatch]
