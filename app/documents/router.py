@@ -39,35 +39,11 @@ router = APIRouter(
     tags=["Documents"],
 )
 
-"""
-Uploads a file to the application.
-What it does
-    Accepts a PDF or TXT file
-    Validates filename, extension, MIME type, size, and empty-file conditions
-    Generates a safe UUID-based stored filename
-    Saves the file under your upload directory
-    Creates a document record in database
-    Links the document to the logged-in user
-    Returns a document_id
-    
-Example
-    POST /documents/upload
-    Content-Type: multipart/form-data
-
-Response:
-    {
-      "document_id": 2,
-      "original_filename": "pacs008-guide.pdf",
-      "processing_status": "uploaded"
-    }
-
-At this stage, the document is only stored. Its text has not been extracted.    
-"""
 @router.post(
     "/upload",
     response_model=DocumentUploadResponse,
     status_code=status.HTTP_201_CREATED,
-    tags=["Document Upload"],
+    tags=["Document"],
     summary="Upload a document",
     description=(
         "Uploads a PDF or TXT document, stores it securely and "
@@ -82,6 +58,34 @@ async def upload_document_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DocumentUploadResponse:
+    """
+    Upload a document to the application.
+
+    What it does:
+        Accepts a PDF or TXT file.
+        Validates filename, extension, MIME type, size, and empty-file cases.
+        Generates a safe UUID-based stored filename.
+        Saves the file under the configured upload directory.
+        Creates a document metadata record in the database.
+        Links the document to the currently logged-in user.
+        Returns the uploaded document metadata.
+
+    Example:
+        POST /documents/upload
+        Content-Type: multipart/form-data
+
+    Response:
+        {
+          "id": 2,
+          "original_filename": "pacs008-guide.pdf",
+          "content_type": "application/pdf",
+          "file_size": 18342,
+          "processing_status": "uploaded",
+          "uploaded_at": "2026-08-06T10:30:00"
+        }
+
+    At this stage, the document is only stored. Text extraction has not run yet.
+    """
     document = await upload_document(
         file=file,
         current_user_id=current_user.id,
@@ -90,41 +94,6 @@ async def upload_document_endpoint(
 
     return DocumentUploadResponse.model_validate(document)
 
-"""
-Extracts readable text from an uploaded document.
-
-What it does
-
-    For a PDF:
-    
-        Opens the saved PDF
-        Reads each page
-        Extracts text
-        Counts pages
-        Handles corrupted, encrypted, or scanned PDFs
-    
-    For a TXT file:
-    
-        Reads the file using supported encodings
-        Validates that it contains text
-    
-    It then saves following in database:
-    
-        extracted_text
-        page_count
-        processed_at
-        Updated processing status
-Example
-    POST /documents/2/process
-
-Status flow:
-
-    uploaded → processing → completed
-
-On failure:
-
-    uploaded → processing → failed        
-"""
 @router.post(
     "/{document_id}/process",
     response_model=DocumentProcessingResponse,
@@ -136,6 +105,36 @@ def process_document_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DocumentProcessingResponse:
+    """
+    Extract readable text from an uploaded document.
+
+    What it does for PDFs:
+        Opens the stored PDF file.
+        Reads each page.
+        Extracts readable text.
+        Counts pages.
+        Handles corrupted, encrypted, or scanned PDFs as extraction failures.
+
+    What it does for TXT files:
+        Reads the stored text file using supported encodings.
+        Validates that the file contains readable text.
+
+    What it saves in the database:
+        extracted_text
+        page_count
+        processed_at
+        processing_status
+        error_message, when extraction fails
+
+    Example:
+        POST /documents/2/process
+
+    Status flow:
+        uploaded -> processing -> completed
+
+    On failure:
+        uploaded -> processing -> failed
+    """
     document = process_document_text(
         document_id=document_id,
         current_user_id=current_user.id,
@@ -152,29 +151,6 @@ def process_document_endpoint(
         error_message=document.error_message,
     )
 
-"""
-Returns the text already extracted from the document.
-
-What it does
-    Finds the document
-    Checks that it belongs to the logged-in user
-    Returns the stored extracted text
-    Does not extract the text again
- 
-Example
-    GET /documents/2/text
-
-Response:
-
-    {
-      "document_id": 2,
-      "original_filename": "pacs008-guide.pdf",
-      "processing_status": "completed",
-      "extracted_text": "The pacs.008 message is used..."
-    }
-
-This is a read-only endpoint.    
-"""
 
 @router.get(
     "/{document_id}/text",
@@ -187,6 +163,28 @@ def get_extracted_text(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ExtractedTextResponse:
+    """
+    Return text that has already been extracted from a document.
+
+    What it does:
+        Finds the document by ID.
+        Verifies that the document belongs to the logged-in user.
+        Returns the stored extracted text and processing status.
+        Does not extract, regenerate, or modify document text.
+
+    Example:
+        GET /documents/2/text
+
+    Response:
+        {
+          "document_id": 2,
+          "original_filename": "pacs008-guide.pdf",
+          "processing_status": "completed",
+          "extracted_text": "The pacs.008 message is used..."
+        }
+
+    This is a read-only endpoint.
+    """
     document = (
         db.query(Document)
         .filter(
@@ -210,37 +208,6 @@ def get_extracted_text(
     )
 
 
-"""
-Splits the extracted text into smaller sections.
-
-Why chunks are needed
-    AI models and embedding models work better with smaller focused pieces than with one very large document.
-
-What it does
-    Reads extracted_text
-    Splits it into chunks
-    Adds overlap between consecutive chunks
-    Tries not to split words or sentences unnecessarily
-    Stores each chunk in document_chunks
-    Records chunk order, character count, and word count
-    Replaces old chunks if you run it again
-    
- Example
-    POST /documents/2/chunks
-    Content-Type: application/json
-    {
-      "chunk_size": 1000,
-      "chunk_overlap": 150
-    }
-
-Response:
-
-    {
-      "document_id": 2,
-      "total_chunks": 35,
-      "processing_status": "chunked"
-    }      
-"""
 @router.post(
     "/{document_id}/chunks",
     response_model=DocumentChunkResponse,
@@ -253,6 +220,41 @@ def chunk_document_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DocumentChunkResponse:
+    """
+    Split extracted document text into smaller chunks.
+
+    Why chunks are needed:
+        AI models and embedding models work better with smaller focused
+        sections than with one very large document body.
+
+    What it does:
+        Reads extracted_text from the document record.
+        Splits the text into ordered chunks.
+        Adds overlap between consecutive chunks.
+        Tries to avoid splitting words or sentences unnecessarily.
+        Stores each chunk in the document_chunks table.
+        Records chunk order, character count, and word count.
+        Replaces old chunks if the endpoint is called again.
+
+    Example:
+        POST /documents/2/chunks
+        Content-Type: application/json
+
+        {
+          "chunk_size": 1000,
+          "chunk_overlap": 150
+        }
+
+    Response:
+        {
+          "document_id": 2,
+          "processing_status": "chunked",
+          "total_chunks": 35,
+          "chunk_size": 1000,
+          "chunk_overlap": 150,
+          "chunks": []
+        }
+    """
     chunks = create_document_chunks(
         document_id=document_id,
         current_user_id=current_user.id,
@@ -279,34 +281,6 @@ def chunk_document_endpoint(
         ],
     )
 
-"""
-Returns chunks that were already created.
-
-What it does
-    Retrieves stored chunks from database
-    Orders them by chunk_order
-    Returns chunk text and metadata
-    Does not create or regenerate chunks
-    
-Example
-    GET /documents/2/chunks
-
-Response:
-
-    {
-      "document_id": 2,
-      "total_chunks": 35,
-      "chunks": [
-        {
-          "chunk_id": 48,
-          "chunk_order": 1,
-          "character_count": 986,
-          "word_count": 153,
-          "chunk_text": "The pacs.008 message..."
-        }
-      ]
-    }
-"""
 @router.get(
     "/{document_id}/chunks",
     tags=["Document Query"],
@@ -318,6 +292,37 @@ def get_document_chunks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """
+    Return chunks that were already created for a document.
+
+    What it does:
+        Finds the document by ID.
+        Verifies that the document belongs to the logged-in user.
+        Retrieves stored chunks from the database.
+        Orders chunks by chunk_order.
+        Returns chunk text and metadata.
+        Does not create or regenerate chunks.
+
+    Example:
+        GET /documents/2/chunks
+
+    Response:
+        {
+          "document_id": 2,
+          "original_filename": "pacs008-guide.pdf",
+          "processing_status": "chunked",
+          "total_chunks": 35,
+          "chunks": [
+            {
+              "chunk_id": 48,
+              "chunk_order": 1,
+              "character_count": 986,
+              "word_count": 153,
+              "chunk_text": "The pacs.008 message..."
+            }
+          ]
+        }
+    """
     document = (
         db.query(Document)
         .filter(
@@ -363,34 +368,6 @@ def get_document_chunks(
         ],
     }
 
-"""
-Converts every document chunk into a numerical vector.
-
-What it does
-    Reads all chunks for the document
-    Sends each chunk to the embedding model
-    Receives a vector, such as 768 numbers
-    Temporarily stores the embedding in embedding_json
-    Stores model name and vector dimension
-    Tracks success or failure for each chunk
- 
-Example
-    POST /documents/2/embeddings
-    
-    No request body is required.
-
-Response:
-
-    {
-      "document_id": 2,
-      "total_chunks": 35,
-      "embedded_chunks": 35,
-      "failed_chunks": 0,
-      "processing_status": "embedded"
-    }
-
-This endpoint creates or regenerates embeddings, so it changes data.    
-"""
 @router.post(
     "/{document_id}/embeddings",
     response_model=DocumentEmbeddingResponse,
@@ -405,6 +382,36 @@ def generate_embeddings_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DocumentEmbeddingResponse:
+    """
+    Generate embeddings for every stored document chunk.
+
+    What it does:
+        Reads all chunks for the document.
+        Sends each chunk to the configured embedding model.
+        Receives a numeric vector for each chunk.
+        Temporarily stores the vector in embedding_json.
+        Stores the embedding model name and vector dimension.
+        Tracks success or failure for each chunk.
+        Updates the document processing status when complete.
+
+    Example:
+        POST /documents/2/embeddings
+
+    Request body:
+        No request body is required.
+
+    Response:
+        {
+          "document_id": 2,
+          "processing_status": "embedded",
+          "total_chunks": 35,
+          "embedded_chunks": 35,
+          "failed_chunks": 0,
+          "embeddings": []
+        }
+
+    This endpoint creates or regenerates embeddings, so it changes data.
+    """
     chunks = generate_document_embeddings(
         document_id=document_id,
         current_user_id=current_user.id,
@@ -441,36 +448,6 @@ def generate_embeddings_endpoint(
         ],
     )
 
-"""
-Returns the current embedding status.
-
-What it does
-    Reads embedding metadata from SQLite
-    Shows which chunks completed or failed
-    Returns model and vector dimension
-    Does not generate embeddings
-    Does not return the full vectors
-Example
-    GET /documents/2/embeddings
-
-Response:
-
-    {
-      "document_id": 2,
-      "total_chunks": 35,
-      "embedded_chunks": 35,
-      "failed_chunks": 0,
-      "embeddings": [
-        {
-          "chunk_id": 48,
-          "chunk_order": 1,
-          "embedding_status": "completed",
-          "embedding_model": "gemini-embedding-2",
-          "embedding_dimension": 768
-        }
-      ]
-    }
-"""
 @router.get(
     "/{document_id}/embeddings",
     response_model=DocumentEmbeddingResponse,
@@ -482,6 +459,41 @@ def get_document_embeddings(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DocumentEmbeddingResponse:
+    """
+    Return the current embedding status for a document.
+
+    What it does:
+        Finds the document by ID.
+        Verifies that the document belongs to the logged-in user.
+        Reads embedding metadata from SQLite.
+        Shows which chunks completed or failed.
+        Returns model name and vector dimension for each chunk.
+        Does not generate embeddings.
+        Does not return full embedding vectors.
+
+    Example:
+        GET /documents/2/embeddings
+
+    Response:
+        {
+          "document_id": 2,
+          "processing_status": "embedded",
+          "total_chunks": 35,
+          "embedded_chunks": 35,
+          "failed_chunks": 0,
+          "embeddings": [
+            {
+              "chunk_id": 48,
+              "chunk_order": 1,
+              "embedding_status": "completed",
+              "embedding_model": "gemini-embedding-2",
+              "embedding_dimension": 768
+            }
+          ]
+        }
+
+    This is a read-only endpoint.
+    """
     document = (
         db.query(Document)
         .filter(
@@ -541,47 +553,6 @@ def get_document_embeddings(
     )
 
 
-"""
-Stores the generated embeddings in ChromaDB.
-
-Difference between embeddings and vectors here
-
-The embedding is the actual numerical list generated by Gemini.
-
-The vector-storage endpoint takes those embeddings and indexes them in ChromaDB along with:
-
-    Chunk text
-    Document ID
-    Chunk ID
-    User ID
-    Filename
-    Embedding model
-    Vector dimension
-    
-What it does
-    Verifies all chunks have completed embeddings
-    Reads embedding_json
-    Creates deterministic vector IDs
-    Stores or updates vectors in ChromaDB
-    Updates vector-storage status in SQLite
-    Marks the document as indexed
-
-Example
-    POST /documents/2/vectors
-
-Response:
-
-    {
-      "document_id": 2,
-      "processing_status": "indexed",
-      "collection_name": "payment_document_chunks",
-      "total_chunks": 35,
-      "indexed_chunks": 35,
-      "failed_chunks": 0
-    }
-
-This endpoint prepares the document for semantic search.
-"""
 @router.post(
     "/{document_id}/vectors",
     response_model=DocumentVectorStoreResponse,
@@ -597,6 +568,47 @@ def store_document_vectors_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DocumentVectorStoreResponse:
+    """
+    Store generated document embeddings in ChromaDB.
+
+    Difference between embeddings and vectors:
+        The embedding is the numeric list generated by the embedding model.
+        The vector-storage step indexes that embedding in ChromaDB so it can
+        be used for semantic search.
+
+    What it indexes with each vector:
+        Chunk text.
+        Document ID.
+        Chunk ID.
+        User ID.
+        Original filename.
+        Embedding model.
+        Vector dimension.
+
+    What it does:
+        Verifies that all chunks have completed embeddings.
+        Reads embedding_json from each chunk.
+        Creates deterministic vector IDs.
+        Stores or updates vectors in ChromaDB.
+        Updates vector-storage status in SQLite.
+        Marks the document as indexed.
+
+    Example:
+        POST /documents/2/vectors
+
+    Response:
+        {
+          "document_id": 2,
+          "processing_status": "indexed",
+          "collection_name": "payment_document_chunks",
+          "total_chunks": 35,
+          "indexed_chunks": 35,
+          "failed_chunks": 0,
+          "chunks": []
+        }
+
+    This endpoint prepares the document for semantic search.
+    """
     chunks = store_document_vectors(
         document_id=document_id,
         current_user_id=current_user.id,
@@ -638,33 +650,6 @@ def store_document_vectors_endpoint(
     )
 
 
-"""
-Returns vector-indexing status.
-
-    What it does
-    Reads status information from SQLite
-    Shows how many chunks are indexed
-    Returns vector IDs and Chroma collection name
-    Does not store vectors again
-    Does not return 768-dimensional vectors
-Example
-    GET /documents/2/vectors
-
-Response:
-
-    {
-      "document_id": 2,
-      "processing_status": "indexed",
-      "collection_name": "payment_document_chunks",
-      "total_chunks": 35,
-      "indexed_chunks": 35,
-      "failed_chunks": 0
-    }
-
-Use this endpoint to answer:
-
-Has this document been indexed successfully?
-"""
 @router.get(
     "/{document_id}/vectors",
     response_model=DocumentVectorStoreResponse,
@@ -676,6 +661,35 @@ def get_document_vectors_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DocumentVectorStoreResponse:
+    """
+    Return vector-indexing status for a document.
+
+    What it does:
+        Finds the document by ID.
+        Verifies that the document belongs to the logged-in user.
+        Reads vector-storage status from SQLite.
+        Shows how many chunks are indexed or failed.
+        Returns vector IDs and the Chroma collection name.
+        Does not store vectors again.
+        Does not return full embedding vectors.
+
+    Example:
+        GET /documents/2/vectors
+
+    Response:
+        {
+          "document_id": 2,
+          "processing_status": "indexed",
+          "collection_name": "payment_document_chunks",
+          "total_chunks": 35,
+          "indexed_chunks": 35,
+          "failed_chunks": 0,
+          "chunks": []
+        }
+
+    Use this endpoint to answer whether a document has been indexed
+    successfully.
+    """
     document = (
         db.query(Document)
         .filter(

@@ -318,34 +318,6 @@ def chat_ask(
 
 app.include_router(document_router)
 
-@app.post("/documents/upload/v2",tags=["Documents"],summary="Upload PDF, TXT, or DOCX documents")
-def upload_document(
-    file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)
-):
-    logger.info("document uplaod endpoint called")
-    allowed_extensions = [".pdf", ".txt", ".docx"]
-    filename = file.filename
-
-    ext = os.path.splitext(filename)[1].lower()
-
-    if ext not in allowed_extensions:
-        raise HTTPException(
-            status_code=400,
-            detail="Only PDF, TXT, and DOCX files are allowed"
-        )
-
-    file_path = os.path.join(UPLOAD_DIR, filename)
-
-    with open(file_path, "wb") as f:
-        f.write(file.file.read())
-    logger.info(
-        f"File uploaded by {current_user.email}: {filename}"
-    )
-    return {
-        "filename": filename,
-        "status": "uploaded"
-    }
 
 @app.get(
     "/documents",
