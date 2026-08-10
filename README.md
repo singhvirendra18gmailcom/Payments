@@ -1,7 +1,10 @@
-# AI Payment Assistant
+<p align="center">
+  <img src="docs/images/banner.png" width="100%">
+</p>
+<h1 align="center">AI Payment Assistant</h1>
 
 <p align="center">
-  <strong>AI-powered assistant for understanding SWIFT MT messages, ISO 20022 messages, payment workflows, and payment-domain documentation using Retrieval-Augmented Generation (RAG).</strong>
+  <strong>AI-powered assistant for understanding SWIFT MT messages, ISO 20022 messages, payment workflows, and payment-domain documentation.</strong>
 </p>
 
 <p align="center">
@@ -9,8 +12,6 @@
   <img src="https://img.shields.io/badge/Python-3.11%2B-blue" alt="Python">
   <img src="https://img.shields.io/badge/FastAPI-Backend-green" alt="FastAPI">
   <img src="https://img.shields.io/badge/AI-Google%20Gemini-orange" alt="Gemini">
-  <img src="https://img.shields.io/badge/VectorDB-ChromaDB-purple" alt="ChromaDB">
-  <img src="https://img.shields.io/badge/RAG-Enabled-success" alt="RAG">
   <img src="https://img.shields.io/badge/License-MIT-lightgrey" alt="License">
 </p>
 
@@ -18,80 +19,57 @@
 
 ## Overview
 
-AI Payment Assistant is a FastAPI-based backend application designed to make complex international-payment concepts and payment documentation easier to understand.
-
-Version 3 adds a complete document intelligence and RAG pipeline on top of the Version 2 authentication, payment explanation, AI chat, logging, testing, and CI capabilities.
+AI Payment Assistant is a FastAPI-based backend application designed to make complex international-payment concepts easier to understand.
 
 The application can:
 
 - Explain SWIFT MT and ISO 20022 payment messages
-- Answer payment-domain questions using Google Gemini
+- Answer payment-domain questions using AI
 - Register and authenticate users with JWT
-- Upload and manage payment-related PDF/TXT/DOCX documents
-- Extract text from uploaded documents
-- Split extracted text into overlapping chunks
-- Generate vector embeddings for document chunks
-- Store and index embeddings in ChromaDB
-- Perform semantic search against a user-owned document
-- Generate grounded answers from retrieved document context
-- Return source chunk references with RAG answers
-- Delete a document together with its physical file, SQLite metadata, chunks, and Chroma vectors
+- Upload and manage payment-related documents
 - Provide application and AI-service health checks
 - Run automated tests through GitHub Actions
 
-This project combines backend engineering, Generative AI, Retrieval-Augmented Generation, vector search, and international-payments domain knowledge.
+This project combines backend engineering, Generative AI, and international-payments domain knowledge.
 
 ---
 
-## Version 3 Highlights
+## Features
 
-### Secure Document Ingestion
+### Authentication
 
-- Authenticated document upload
-- User-level document ownership
-- File type and size validation
-- Physical file storage
-- SQLite document metadata
-- Safe deletion across file storage, SQLite, and ChromaDB
+- User registration
+- User login
+- JWT access-token generation
+- Protected user-profile endpoint
 
-### Document Processing
+### Payment Explanation
 
-- PDF/TXT text extraction
-- Processing status tracking
-- Character and page-count metadata
-- Configurable chunk size and overlap
-- Ordered document chunks stored in SQLite
+- Explain payment messages using structured logic
+- Generate AI-powered payment explanations
+- Support SWIFT MT and ISO 20022 concepts
 
-### Embeddings
+### AI Chat
 
-- Google Gemini embedding generation
-- Configurable embedding dimension
-- Embedding model/status tracking
-- Temporary embedding persistence in SQLite during the learning-oriented V3 pipeline
+- Ask payment-domain questions
+- Ask general AI questions
+- Integrate with Google Gemini
 
-### Vector Storage
+### Document Management
 
-- Persistent ChromaDB storage
-- Deterministic vector IDs
-- Chunk text stored alongside vectors
-- Metadata filters for `document_id` and `user_id`
-- Idempotent vector upsert
+- Upload payment-domain documents with authenticated metadata tracking
+- Store uploaded files on disk
+- Persist document metadata in SQLite
+- Keep legacy local upload endpoints available
 
-### Semantic Search
+### Engineering and Operations
 
-- Query embedding generation
-- Chroma nearest-neighbor search
-- Top-K retrieval
-- Document/user metadata filtering
-- Distance and relevance information
-
-### Retrieval-Augmented Generation
-
-- Question + retrieved chunks → grounded Gemini prompt
-- Answers constrained to retrieved document context
-- Source chunk references returned with the answer
-- Insufficient-context handling
-- Support for direct, list, comparison, and multi-part questions
+- Environment-based configuration
+- Structured application logging
+- SQLAlchemy database integration
+- Pytest unit and API testing
+- GitHub Actions continuous integration
+- Health and AI-service health endpoints
 
 ---
 
@@ -102,322 +80,199 @@ This project combines backend engineering, Generative AI, Retrieval-Augmented Ge
 | Programming language | Python |
 | API framework | FastAPI |
 | AI provider | Google Gemini |
-| Embedding provider | Google Gemini Embeddings |
-| Vector database | ChromaDB |
-| ORM | SQLAlchemy |
-| Application database | SQLite |
-| Database migrations | Alembic |
+| Database ORM | SQLAlchemy |
+| Database | SQLite |
 | Authentication | JWT |
 | Validation | Pydantic |
-| Testing | Pytest / FastAPI TestClient |
+| Testing | Pytest |
 | CI/CD | GitHub Actions |
 | API documentation | Swagger UI / OpenAPI |
-| Logging | Python structured logging |
 
 ---
 
-## Version 3 Architecture
+## Architecture
 
 ```mermaid
 flowchart LR
     U[User / API Client] --> F[FastAPI Application]
-    F --> A[JWT Authentication]
-    F --> P[Payment Explanation]
-    F --> C[AI Chat]
-    F --> D[Document / RAG Module]
-    F --> H[Health]
-    A --> DB[(SQLite)]
-    D --> UP[Upload Document]
-    UP --> FS[(Physical File Storage)]
-    UP --> DB
-    D --> EX[Extract Text]
-    EX --> DB
-    D --> CH[Chunk Text]
-    CH --> DB
-    D --> EM[Generate Embeddings]
-    EM --> G1[Gemini Embedding API]
-    EM --> DB
-    D --> VS[Store Vectors]
-    VS --> VDB[(ChromaDB)]
-    D --> SS[Semantic Search]
-    SS --> G1
-    SS --> VDB
-    D --> RAG[RAG Answer]
-    RAG --> SS
-    RAG --> G2[Gemini LLM]
+
+    F --> A[Authentication Module]
+    F --> P[Payment Explanation Module]
+    F --> C[AI Chat Module]
+    F --> D[Document Module]
+    F --> H[Health Module]
+
+    A --> DB[(SQLite Database)]
+    D --> FS[(Local Document Storage)]
+    D --> DB
+
+    P --> G[Google Gemini API]
+    C --> G
+
     F --> L[Structured Logging]
     F --> T[Pytest Test Suite]
     T --> CI[GitHub Actions]
 ```
 
+### Request Flow
+
+1. A user registers or logs in.
+2. The application generates a JWT access token.
+3. The user authorizes protected API requests.
+4. FastAPI validates the request using Pydantic models.
+5. The appropriate service processes the request.
+6. AI-enabled endpoints call Google Gemini when configured.
+7. The API returns a structured JSON response.
+8. Important events and errors are recorded through application logging.
+
 ---
 
-## Final V3 Document Flow
+## API Documentation
 
-### Ingestion
+After starting the application, open:
 
 ```text
-POST /documents/upload
-        ↓
-Physical file + documents row
-        ↓
-POST /documents/{id}/process
-        ↓
-Extracted text
-        ↓
-POST /documents/{id}/chunks
-        ↓
-Ordered chunks
-        ↓
-POST /documents/{id}/embeddings
-        ↓
-Numerical embeddings
-        ↓
-POST /documents/{id}/vectors
-        ↓
-Indexed vectors in ChromaDB
+http://127.0.0.1:8000/docs
 ```
 
-### Retrieval
+Alternative OpenAPI documentation:
 
 ```text
-User Question
-      ↓
-POST /documents/{id}/search
-      ↓
-Question embedding
-      ↓
-ChromaDB semantic search
-      ↓
-Top-K relevant chunks
+http://127.0.0.1:8000/redoc
 ```
 
-### RAG Question Answering
+---
+
+## Screenshots
+
+### Swagger API Overview
+
+![Swagger API Overview](docs/images/swagger-api.png)
+
+### User Login
+
+![User Login](docs/images/login-api.png)
+
+### AI Payment Explanation
+
+![AI Payment Explanation](docs/images/payment-explanation.png)
+
+### Document Upload
+
+![Document Upload](docs/images/document-upload.png)
+
+### GitHub Actions
+
+![GitHub Actions](docs/images/github-actions.png)
+
+> Add the corresponding image files under `docs/images/`. Remove any passwords, API keys, JWT tokens, personal data, or real payment information before publishing screenshots.
+
+---
+
+## Project Structure
 
 ```text
-User Question
-      +
-Top-K Relevant Chunks
-      ↓
-Context Builder
-      ↓
-Grounded Gemini Prompt
-      ↓
-POST /documents/{id}/ask
-      ↓
-Answer + Source Chunks
-```
-
----
-
-## Document Processing States
-
-```text
-uploaded
-   ↓
-processing
-   ↓
-completed
-   ↓
-chunked
-   ↓
-embedded
-   ↓
-indexed
-```
-
----
-
-## Main API Endpoints
-
-### Authentication
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/auth/register` | Register a user |
-| POST | `/auth/login` | Authenticate and issue JWT |
-| GET | `/auth/me` | Get current user |
-
-### Payment / AI
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/payments/explain` | Local/structured payment explanation |
-| POST | `/payments/explain-ai` | Gemini-powered payment explanation |
-| POST | `/chat/ask` | Payment-domain chat |
-
-### Document Upload & Management
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/documents/upload` | Upload a document |
-| GET | `/documents` | List current user's documents |
-| DELETE | `/documents/{document_id}` | Delete file, metadata, chunks, and vectors |
-
-### Document Processing
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/documents/{document_id}/process` | Extract document text |
-| POST | `/documents/{document_id}/chunks` | Split extracted text into chunks |
-| POST | `/documents/{document_id}/embeddings` | Generate chunk embeddings |
-| POST | `/documents/{document_id}/vectors` | Store/index vectors in ChromaDB |
-
-### Document Query / RAG
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/documents/{document_id}/text` | Get extracted text |
-| GET | `/documents/{document_id}/chunks` | Get stored chunks |
-| GET | `/documents/{document_id}/embeddings` | Get embedding status |
-| GET | `/documents/{document_id}/vectors` | Get vector indexing status |
-| POST | `/documents/{document_id}/search` | Semantic search over document chunks |
-| POST | `/documents/{document_id}/ask` | Grounded RAG question answering |
-
-All document-specific endpoints enforce user ownership.
-
----
-
-## RAG Request Example
-
-```http
-POST /documents/4/ask
-Content-Type: application/json
-Authorization: Bearer <token>
-```
-
-```json
-{
-  "question": "Explain PACS.008, its purpose, key participants and important fields.",
-  "top_k": 10
-}
-```
-
----
-
-## Data Storage Responsibilities
-
-### SQLite
-
-Stores transactional/application state:
-
-- Users
-- Documents
-- Document ownership
-- Extracted text
-- Document chunks
-- Processing status
-- Embedding metadata/status
-- Vector IDs and indexing status
-
-### ChromaDB
-
-Stores retrieval/index data:
-
-- Vector ID
-- Numerical embedding
-- Chunk text
-- Document metadata
-- User metadata
-- Chunk metadata
-
-### File System
-
-Stores the original uploaded document.
-
----
-
-## Delete Workflow
-
-```text
-DELETE /documents/{id}
-        ↓
-Verify ownership
-        ↓
-Delete Chroma vectors
-        ↓
-Delete physical file
-        ↓
-Delete document chunks
-        ↓
-Delete document metadata
-        ↓
-Commit SQLite transaction
-```
-
----
-
-## Database Migrations
-
-Alembic is used for schema evolution without recreating the SQLite database.
-
-```bash
-alembic current
-alembic history
-alembic revision --autogenerate -m "description"
-alembic upgrade head
-```
-
----
-
-## Testing
-
-Version 3 includes API tests for upload, text extraction, chunking, embedding generation, vector indexing, semantic search, `/ask`, invalid pipeline state, missing documents, and ownership rules.
-
-Run:
-
-```bash
-pytest -v
+ai-payment-assistant/
+├── app/
+│   ├── documents/
+│   │   ├── config.py
+│   │   ├── models.py
+│   │   ├── router.py
+│   │   └── service.py
+│   ├── services/
+│   ├── auth.py
+│   ├── config.py
+│   ├── database.py
+│   ├── logger.py
+│   ├── main.py
+│   ├── models.py
+│   ├── payment_service.py
+│   └── schemas.py
+├── docs/
+├── logs/
+├── tests/
+├── uploads/
+├── .github/
+├── .env.example
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
 ## Installation
 
+### 1. Clone the repository
+
 ```bash
 git clone https://github.com/YOUR-USERNAME/ai-payment-assistant.git
 cd ai-payment-assistant
-python -m venv .venv
 ```
 
-Windows PowerShell:
+### 2. Create a virtual environment
+
+#### Windows PowerShell
 
 ```powershell
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-Install:
+#### macOS or Linux
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
 
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Environment:
+### 4. Create the environment file
+
+Copy the example file:
+
+#### Windows PowerShell
+
+```powershell
+Copy-Item .env.example .env
+```
+
+#### macOS or Linux
+
+```bash
+cp .env.example .env
+```
+
+Update `.env` with your local configuration:
 
 ```env
 SECRET_KEY=replace_with_a_strong_secret_key
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
-DATABASE_URL=sqlite:///./payment_assistant.db
+DATABASE_URL=sqlite:///./ai_payment_assistant.db
 GEMINI_API_KEY=replace_with_your_gemini_api_key
-GEMINI_MODEL=gemini-2.5-flash
-GEMINI_CHAT_MODEL=gemini-2.5-flash
-GEMINI_EMBEDDING_MODEL=gemini-embedding-2
-EMBEDDING_DIMENSION=768
-CHROMA_PERSIST_DIRECTORY=./data/chroma
-CHROMA_COLLECTION_NAME=payment_document_chunks
-VECTOR_STORE_BATCH_SIZE=100
 ```
 
-Apply migrations and start:
+Never commit your real `.env` file.
+
+### 5. Start the application
 
 ```bash
-alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Swagger:
+The application will be available at:
+
+```text
+http://127.0.0.1:8000
+```
+
+### 6. Open Swagger UI
 
 ```text
 http://127.0.0.1:8000/docs
@@ -425,20 +280,148 @@ http://127.0.0.1:8000/docs
 
 ---
 
-## Git Ignore Recommendations
+## Testing
 
-```gitignore
-.env
-.venv/
-__pycache__/
-*.pyc
-*.db
-logs/
-*.log
-uploads/
-data/chroma/
-.idea/
-*.iml
+Run all tests from the project virtual environment:
+
+### Windows PowerShell
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
+
+### macOS or Linux
+
+```bash
+python -m pytest
+```
+
+Run tests with detailed output:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -v
+```
+
+Run tests with coverage when `pytest-cov` is installed:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest --cov=app --cov-report=term-missing
+```
+
+The test suite uses `AI_PROVIDER=local` from `tests/conftest.py`, so tests do not call the external Gemini API.
+
+---
+
+## Main API Endpoints
+
+| Method | Endpoint | Description | Authentication |
+|---|---|---|---|
+| GET | `/health` | Application health check | No |
+| GET | `/ai/health` | AI-service health check | No |
+| POST | `/auth/register` | Register a new user | No |
+| POST | `/auth/login` | Authenticate user with OAuth2 password form data | No |
+| GET | `/auth/me` | Get current user profile | Yes |
+| POST | `/payments/explain` | Explain payment message | Yes |
+| POST | `/payments/explain-ai` | Explain payment using AI | No |
+| POST | `/chat/ask` | Ask Payment Assistant | Yes |
+| POST | `/chat/ask-ai` | Ask General AI Assistant | No |
+| POST | `/documents/upload` | Upload PDF or TXT document, persist metadata, and save the file under `uploads/documents` | Yes |
+| POST | `/documents/upload/v2` | Upload PDF, TXT, or DOCX document to the legacy local storage path | Yes |
+| GET | `/documents` | List uploaded documents from the legacy local upload directory | Yes |
+
+---
+
+## Example Usage
+
+### Register a user
+
+```bash
+curl -X POST "http://127.0.0.1:8000/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Example User",
+    "email": "user@example.com",
+    "password": "StrongPassword123"
+  }'
+```
+
+### Log in
+
+```bash
+curl -X POST "http://127.0.0.1:8000/auth/login" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=user@example.com&password=StrongPassword123"
+```
+
+The login endpoint follows FastAPI's OAuth2 password flow. Use `username` for the registered email address.
+
+### Explain a payment message
+
+```bash
+TOKEN="paste_access_token_here"
+
+curl -X POST "http://127.0.0.1:8000/payments/explain" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message_type": "pacs.008",
+    "content": "Add a safe sample payment message here"
+  }'
+```
+
+Use `/payments/explain-ai` for the AI-powered public endpoint.
+
+### Upload a document
+
+The primary upload endpoint is `/documents/upload`. It accepts authenticated multipart uploads, allows only PDF and TXT files, enforces a 10 MB limit, stores the file under `uploads/documents`, and creates a document record in the database.
+
+```bash
+curl -X POST "http://127.0.0.1:8000/documents/upload" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@sample-document.pdf;type=application/pdf"
+```
+
+Expected response fields:
+
+- `document_id`
+- `original_filename`
+- `content_type`
+- `file_size`
+- `processing_status`
+- `uploaded_at`
+
+The older `/documents/upload/v2` endpoint still exists for direct local file storage and also accepts `.docx` files.
+
+---
+
+## Security
+
+- Passwords should be stored only as secure hashes.
+- Protected endpoints require JWT authentication.
+- Secrets are loaded from environment variables.
+- `.env` must remain excluded through `.gitignore`.
+- Screenshots and examples must not contain real customer or payment data.
+- API responses should avoid exposing internal exception details.
+- Uploaded documents should be validated for file type and size.
+- `/documents/upload` accepts only PDF and TXT files and enforces a 10 MB size limit.
+
+---
+
+## Continuous Integration
+
+GitHub Actions runs the automated test suite when code is pushed or a pull request is created.
+
+Suggested workflow checks:
+
+- Install Python
+- Install project dependencies
+- Run Pytest
+- Fail the workflow when tests fail
+
+Workflow file location:
+
+```text
+.github/workflows/tests.yml
 ```
 
 ---
@@ -447,40 +430,52 @@ data/chroma/
 
 ### Version 3.0.0
 
-Version 3 adds:
+Version 3 includes:
 
-- Document text extraction
-- Chunking
-- Gemini embeddings
-- ChromaDB vector storage
-- Semantic search
-- End-to-end RAG question answering
-- Source chunk traceability
-- User-scoped retrieval
-- Full document cleanup
-- Alembic schema migration support
-- Expanded document pipeline tests
-
-Version 2 capabilities remain available, including JWT authentication, payment explanation, AI chat, logging, automated tests, GitHub Actions, and Swagger documentation.
+- JWT authentication
+- Payment-message explanation
+- AI-powered payment explanation
+- AI chat endpoints
+- Document upload with database-backed metadata
+- Legacy local document upload and listing
+- Structured logging
+- Automated testing
+- GitHub Actions CI
+- Improved Swagger documentation
 
 ---
 
 ## Roadmap
 
-Potential Version 4 improvements:
+Planned Version 3 improvements:
 
-- Multi-document RAG
-- Conversation history / multi-turn document chat
-- Page-level/source citations
-- Hybrid lexical + vector retrieval
-- Reranking
-- Background document processing
-- PostgreSQL / pgvector evaluation
+- Retrieval-Augmented Generation
+- Semantic search across uploaded documents
+- Payment-message validation
+- Conversation history
+- Role-based access control
+- PostgreSQL support
 - Docker deployment
 - Cloud deployment
-- Role-based access control
-- Monitoring and retrieval-quality metrics
-- Web frontend
+- Improved monitoring and analytics
+- Web-based frontend
+
+---
+
+## Learning Outcomes
+
+This project demonstrates practical experience in:
+
+- FastAPI backend development
+- REST API design
+- JWT-based authentication
+- SQLAlchemy database integration
+- Generative AI integration
+- Payment-domain application design
+- Automated testing
+- Continuous integration
+- Logging and configuration management
+- Technical documentation
 
 ---
 
