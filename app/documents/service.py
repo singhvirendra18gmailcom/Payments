@@ -63,6 +63,11 @@ from app.vector_store.chroma_store import (
     VectorStoreError,
 )
 
+from app.ai.rag_service import (
+    GeminiRAGService,
+    RAGGenerationError,
+)
+
 def validate_basic_file_details(file: UploadFile) -> str:
     """
     Validate filename, extension and content type.
@@ -795,3 +800,85 @@ def distance_to_relevance(distance: float) -> float:
         1.0 / (1.0 + distance),
         4,
     )
+
+def build_rag_context(matches) -> str:
+    """
+    Convert retrieved Chroma matches into LLM context.
+    """
+
+    context_parts: list[str] = []
+
+    for index, match in enumerate(
+        matches,
+        start=1,
+    ):
+        chunk_id = match.metadata.get(
+            "chunk_id"
+        )
+
+        chunk_order = match.metadata.get(
+            "chunk_order"
+        )
+
+        context_parts.append(
+            (
+                f"[Source {index}]\n"
+                f"Chunk ID: {chunk_id}\n"
+                f"Chunk Order: {chunk_order}\n"
+                f"Text:\n"
+                f"{match.document_text}"
+            )
+        )
+
+    return "\n\n".join(context_parts)
+
+def ask_document_question(
+    *,
+    document_id: int,
+    current_user_id: int,
+    question: str,
+    top_k: int,
+    db: Session,
+):
+    """
+    Retrieve relevant chunks and generate a grounded LLM answer.
+    """
+
+    search_result = search_document_chunks(
+        document_id=document_id,
+        current_user_id=current_user_id,
+        question=question,
+        top_k=top_k,
+        db=db,
+    )
+
+    if not search_result.matches:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "No relevant document content was found."
+            ),
+        )
+
+    context = build_rag_context(
+        search_result.matches
+    )
+
+    try:
+        rag_service = GeminiRAGService()
+
+        answer = rag_service.generate_answer(
+            question=question,
+            context=context,
+        )
+
+        return (
+            answer,
+            search_result.matches,
+        )
+
+    except RAGGenerationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc

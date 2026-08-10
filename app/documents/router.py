@@ -44,6 +44,16 @@ from app.documents.service import (
     search_document_chunks,
 )
 
+from app.documents.schemas import (
+    DocumentAskRequest,
+    DocumentAskResponse,
+    RAGSource,
+)
+
+from app.documents.service import (
+    ask_document_question,
+)
+
 router = APIRouter(
     prefix="/documents",
     tags=["Documents"],
@@ -810,4 +820,64 @@ def search_document_endpoint(
         collection_name=result.collection_name,
         total_matches=len(matches),
         matches=matches,
+    )
+
+@router.post(
+    "/{document_id}/ask",
+    response_model=DocumentAskResponse,
+    tags=["Document Query"],
+    summary="Ask a question about a document",
+    description=(
+        "Retrieves relevant document chunks from "
+        "ChromaDB and uses Gemini to generate a "
+        "grounded answer."
+    ),
+)
+def ask_document_endpoint(
+    document_id: int,
+    request: DocumentAskRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        get_current_user
+    ),
+) -> DocumentAskResponse:
+
+    answer, matches = ask_document_question(
+        document_id=document_id,
+        current_user_id=current_user.id,
+        question=request.question,
+        top_k=request.top_k,
+        db=db,
+    )
+
+    sources = [
+        RAGSource(
+            source_number=index,
+            chunk_id=match.metadata.get(
+                "chunk_id"
+            ),
+            chunk_order=match.metadata.get(
+                "chunk_order"
+            ),
+            vector_id=match.vector_id,
+            distance=round(
+                match.distance,
+                6,
+            ),
+            preview=(
+                match.document_text[:250]
+            ),
+        )
+        for index, match in enumerate(
+            matches,
+            start=1,
+        )
+    ]
+
+    return DocumentAskResponse(
+        document_id=document_id,
+        question=request.question,
+        answer=answer,
+        total_sources=len(sources),
+        sources=sources,
     )

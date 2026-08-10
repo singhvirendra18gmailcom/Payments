@@ -123,3 +123,37 @@ class DocumentSearchResponse(BaseModel):
     collection_name: str
     total_matches: int
     matches: list[DocumentSearchMatch]
+
+
+
+class DocumentAskRequest(BaseModel):
+    question: str = Field(
+        min_length=3,
+        max_length=2000,
+        examples=[
+            "What is PACS.008 used for?"
+        ],
+    )
+
+    top_k: int = Field(
+        default=5,
+        ge=1,
+        le=10,
+    )
+
+
+class RAGSource(BaseModel):
+    source_number: int
+    chunk_id: int | None
+    chunk_order: int | None
+    vector_id: str
+    distance: float
+    preview: str
+
+
+class DocumentAskResponse(BaseModel):
+    document_id: int
+    question: str
+    answer: str
+    total_sources: int
+    sources: list[RAGSource]
