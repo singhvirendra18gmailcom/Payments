@@ -1,6 +1,17 @@
 import os
 
-os.environ["AI_PROVIDER"] = "local"
+# Test-only configuration
+os.environ.setdefault(
+    "GEMINI_API_KEY",
+    "test-gemini-api-key"
+)
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+# rest of your fixtures...
 
 import pytest
 
