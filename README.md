@@ -136,8 +136,10 @@ This project combines **backend engineering, Generative AI, Retrieval-Augmented 
 
 ---
 
+
 ## Architecture
 
+```mermaid
 flowchart LR
     U[User / API Client] --> F[FastAPI Application]
 
@@ -179,8 +181,10 @@ flowchart LR
     F --> L[Structured Logging]
     F --> T[Pytest Test Suite]
     T --> CI[GitHub Actions]
-
 ```
+
+
+
 ### Request Flow
 
 1. A user registers or logs in and receives a JWT access token.
