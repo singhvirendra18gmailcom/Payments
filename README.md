@@ -135,52 +135,52 @@ This project combines **backend engineering, Generative AI, Retrieval-Augmented 
 | Logging | Python structured logging |
 
 ---
-
-
 ## Architecture
 
 ```mermaid
 flowchart LR
-    U[User / API Client] --> F[FastAPI Application]
 
-    F --> A[Authentication Module]
-    F --> P[Payment Explanation Module]
-    F --> C[AI Chat Module]
-    F --> D[Document / RAG Module]
-    F --> H[Health Module]
+    U["User / API Client"] --> F["FastAPI Application"]
 
-    A --> DB[(SQLite Database)]
-    P --> G[Google Gemini API]
+    F --> A["Authentication"]
+    F --> P["Payment Explanation"]
+    F --> C["AI Chat"]
+    F --> D["Document RAG"]
+    F --> H["Health"]
+
+    A --> DB[("SQLite")]
+
+    P --> G["Google Gemini"]
     C --> G
 
-    D --> UP[Document Upload]
-    UP --> FS[(Local File Storage)]
+    D --> UP["Document Upload"]
+    UP --> FS[("Local File Storage")]
     UP --> DB
 
-    D --> EX[Text Extraction]
+    D --> EX["Text Extraction"]
     EX --> DB
 
-    D --> CH[Text Chunking]
+    D --> CH["Text Chunking"]
     CH --> DB
 
-    D --> EM[Embedding Generation]
-    EM --> GE[Gemini Embedding API]
+    D --> EM["Embedding Generation"]
+    EM --> GE["Gemini Embeddings"]
     EM --> DB
 
-    D --> VS[Vector Indexing]
-    VS --> VDB[(ChromaDB)]
+    D --> VS["Vector Indexing"]
+    VS --> VDB[("ChromaDB")]
 
-    D --> SS[Semantic Search]
+    D --> SS["Semantic Search"]
     SS --> GE
     SS --> VDB
 
-    D --> RAG[RAG Question Answering]
+    D --> RAG["RAG Question Answering"]
     RAG --> SS
     RAG --> G
 
-    F --> L[Structured Logging]
-    F --> T[Pytest Test Suite]
-    T --> CI[GitHub Actions]
+    F --> L["Structured Logging"]
+    F --> T["Pytest"]
+    T --> CI["GitHub Actions"]
 ```
 
 
