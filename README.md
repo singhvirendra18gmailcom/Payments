@@ -310,7 +310,7 @@ ai-payment-assistant/
 │
 ├── migration/
 │   ├── versions/
-│   │   └── efce3f2576e5_add_vector_store_fields.py
+│   │   └── ...
 │   ├── env.py
 │   ├── README
 │   └── script.py.mako
@@ -413,6 +413,7 @@ cp .env.example .env
 Update `.env` with your local configuration:
 
 ```env
+
 # Authentication
 SECRET_KEY=replace_with_a_strong_secret_key
 ALGORITHM=HS256
@@ -426,13 +427,12 @@ GEMINI_API_KEY=replace_with_your_gemini_api_key
 GEMINI_MODEL=gemini-2.5-flash
 
 # Embeddings
-GEMINI_EMBEDDING_MODEL=your_embedding_model
+GEMINI_EMBEDDING_MODEL=replace_with_your_embedding_model
 EMBEDDING_DIMENSION=768
 
 # ChromaDB
 CHROMA_PERSIST_DIRECTORY=./data/chroma
 CHROMA_COLLECTION_NAME=payment_document_chunks
-
 ```
 
 Never commit your real `.env` file.
