@@ -1,6 +1,28 @@
-/payment_assistant.db
-.env
+# Python
 __pycache__/
 *.pyc
-*.db
 .venv/
+
+# Environment
+.env
+
+# Database
+*.db
+
+# Logs
+logs/
+*.log
+
+# Uploads
+uploads/
+
+# ChromaDB
+data/chroma/
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

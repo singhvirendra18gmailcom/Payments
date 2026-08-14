@@ -36,7 +36,19 @@ from .auth import (
     get_current_user
 )
 from .payment_service import explain_payment, answer_question
+from app.documents.router import router as document_router
+from app.database import Base, engine
+from app.documents.models import Document
+from app.models import  User
+from app.documents.models import Document
+from app.documents.chunk_models import DocumentChunk
+from fastapi import Depends
+from sqlalchemy.orm import Session
 
+from app.auth import get_db
+from app.documents.models import Document
+from app.models import User
+from app.auth import get_current_user
 Base.metadata.create_all(bind=engine)
 
 tags_metadata = [
@@ -59,11 +71,27 @@ tags_metadata = [
     {
         "name": "Health",
         "description": "Application health and readiness checks."
-    }
+    },
+    {
+        "name": "AI Chat",
+        "description": "General AI chat and payment explanation APIs.",
+    },
+    {
+        "name": "Document Upload",
+        "description": "Upload and manage payment documents.",
+    },
+    {
+        "name": "Document Processing",
+        "description": "Extract text, split into chunks and prepare documents for AI search.",
+    },
+    {
+        "name": "Document Query",
+        "description": "Retrieve document text and ask AI questions (RAG).",
+    },
 ]
 app = FastAPI(
     title="AI Payment Assistant",
-    version="2.0.0",
+    version="3.0.0",
     description="AI-powered assistant for understanding SWIFT MT messages, ISO 20022 messages, and payment-domain documentation.",
     contact={
         "name": "Virendra Singh",
@@ -288,48 +316,43 @@ def chat_ask(
         "answer": answer
     }
 
-@app.post("/documents/upload",tags=["Documents"],summary="Upload PDF, TXT, or DOCX documents")
-def upload_document(
-    file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)
+app.include_router(document_router)
+
+
+@app.get(
+    "/documents",
+    tags=["Document Query"],
+    summary="List uploaded documents",
+)
+def list_documents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    logger.info("document uplaod endpoint called")
-    allowed_extensions = [".pdf", ".txt", ".docx"]
-    filename = file.filename
-
-    ext = os.path.splitext(filename)[1].lower()
-
-    if ext not in allowed_extensions:
-        raise HTTPException(
-            status_code=400,
-            detail="Only PDF, TXT, and DOCX files are allowed"
-        )
-
-    file_path = os.path.join(UPLOAD_DIR, filename)
-
-    with open(file_path, "wb") as f:
-        f.write(file.file.read())
     logger.info(
-        f"File uploaded by {current_user.email}: {filename}"
+        "List documents endpoint called for user_id=%s",
+        current_user.id,
     )
-    return {
-        "filename": filename,
-        "status": "uploaded"
-    }
 
-@app.get("/documents",tags=["Documents"],summary="List uploaded documents")
-def list_documents(current_user: User = Depends(get_current_user)):
-    logger.info("list all documents endpoint called")
-    files = os.listdir(UPLOAD_DIR)
+    documents = (
+        db.query(Document)
+        .filter(Document.uploaded_by == current_user.id)
+        .order_by(Document.uploaded_at.desc())
+        .all()
+    )
 
     return [
         {
-            "filename": file,
-            "type": os.path.splitext(file)[1].replace(".", "")
+            "document_id": document.id,
+            "original_filename": document.original_filename,
+            "stored_filename": document.stored_filename,
+            "content_type": document.content_type,
+            "file_extension": document.file_extension,
+            "file_size": document.file_size,
+            "processing_status": document.processing_status,
+            "uploaded_at": document.uploaded_at,
         }
-        for file in files
+        for document in documents
     ]
-
 
 
 @app.post("/chat/ask-ai",tags=["Chat"],summary="Ask General AI Assistant")
