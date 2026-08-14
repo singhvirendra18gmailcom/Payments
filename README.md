@@ -266,6 +266,25 @@ Authenticated upload of PDF, TXT, and DOCX payment-domain documents.
 
 ![Document Upload](docs/images/document-upload.png)
 
+
+### Vector Indexing
+
+Document chunk embeddings indexed and stored in ChromaDB.
+
+![Vector Indexing](docs/images/vector-indexing.png)
+
+### Semantic Search
+
+Top-K relevant document chunks retrieved using vector similarity search.
+
+![Semantic Search](docs/images/semantic-search.png)
+
+### RAG Document Question Answering
+
+Document-grounded answer generated using retrieved context and Google Gemini.
+
+![RAG Document Question Answering](docs/images/rag-document-ask.png)
+
 ### GitHub Actions CI
 
 Automated test execution and continuous integration validating the V3 development pipeline.
